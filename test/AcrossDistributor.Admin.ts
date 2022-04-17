@@ -30,32 +30,17 @@ describe("AcrossDistributor: Admin Functions", async function () {
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
   });
 
-  it("Recover ERC20 Tokens", async function () {
-    // Drop tokens onto the contract. Check they can be recovered by admin.
-    await acrossToken.mint(distributor.address, toWei(420));
-    expect(await acrossToken.balanceOf(distributor.address)).to.equal(toWei(420));
-
-    await distributor.recoverERC20(acrossToken.address, toWei(420));
-    expect(await acrossToken.balanceOf(distributor.address)).to.equal(toBN(0));
-    expect(await acrossToken.balanceOf(owner.address)).to.equal(toWei(420));
-  });
-
   it("Can not recover staking tokens", async function () {
     // Should not be able to recover staking tokens.
     await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
     await lpToken1.mint(distributor.address, toWei(420));
-    await expect(distributor.recoverERC20(lpToken1.address, toWei(420))).to.be.revertedWith(
+    await expect(distributor.recoverErc20(lpToken1.address, toWei(420))).to.be.revertedWith(
       "Can't recover staking token"
     );
   });
 
   it("Non owner cant execute admin functions", async function () {
     await expect(distributor.connect(rando).enableStaking(lpToken1.address, true, 4, 2, 0)).to.be.revertedWith(
-      "Ownable: caller is not the owner"
-    );
-
-    await acrossToken.mint(distributor.address, toWei(420));
-    await expect(distributor.connect(rando).recoverERC20(acrossToken.address, toWei(420))).to.be.revertedWith(
       "Ownable: caller is not the owner"
     );
   });

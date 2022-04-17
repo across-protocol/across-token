@@ -8,6 +8,8 @@ export const secondsToMaxMultiplier = 1000; // it should take 1000 seconds to re
 
 export const seedDistributorAmount = toWei(100000);
 
-export const seedWalletAmount = toWei(100);
+export const seedWalletAmount = toWei(1000);
+
+export const stakeAmount = toWei(10);
 
 export const safeMaxApprove = "79228162514264337593543950335";

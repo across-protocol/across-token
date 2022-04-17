@@ -1,21 +1,15 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, seedAndApproveWallet, toBN, advanceTime } from "./utils";
-import { acrossDistributorFixture } from "./AcrossDistributor.Fixture";
-import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, seedDistributorAmount } from "./constants";
+import { acrossDistributorFixture, enableTokenForStaking } from "./AcrossDistributor.Fixture";
+import { maxMultiplier, stakeAmount } from "./constants";
 
 let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract;
 let owner: SignerWithAddress, depositor1: SignerWithAddress, depositor2: SignerWithAddress;
-
-const stakeAmount = toWei(10);
 
 describe("AcrossDistributor: Staking Rewards", async function () {
   beforeEach(async function () {
     [owner, depositor1, depositor2] = await ethers.getSigners();
     ({ timer, distributor, acrossToken, lpToken1 } = await acrossDistributorFixture());
-
-    // Enable the LpToken for staking and deposit some across tokens into the distributor.
-    await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
-    await acrossToken.mint(distributor.address, seedDistributorAmount);
-
+    await enableTokenForStaking(distributor, lpToken1, acrossToken);
     await seedAndApproveWallet(depositor1, [lpToken1], distributor);
     await seedAndApproveWallet(depositor2, [lpToken1], distributor);
   });
@@ -26,10 +20,12 @@ describe("AcrossDistributor: Staking Rewards", async function () {
       // Token balances should change as expected
       .to.changeTokenBalances(lpToken1, [distributor, depositor1], [stakeAmount, stakeAmount.mul(-1)]);
     // Should have correct staked amount.
-    expect(await distributor.getCumulativeStakingBalance(lpToken1.address, depositor1.address)).to.equal(stakeAmount);
+    expect((await distributor.getUserStake(lpToken1.address, depositor1.address)).cumulativeBalance).to.equal(
+      stakeAmount
+    );
 
     // As no time has elapsed the rewards entitled to the user should be 0.
-    expect(await distributor.outstandingRewards(lpToken1.address, depositor1.address)).to.equal(toBN(0));
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toBN(0));
 
     // The user should start with the reward multiplier of 1.
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1));
@@ -43,7 +39,7 @@ describe("AcrossDistributor: Staking Rewards", async function () {
     // should be duration * baseEmissionRate * multiplier = 200 * 0.01 * 1.8 = 3.6.
     await advanceTime(timer, 200);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
-    expect(await distributor.outstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(3.6));
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(3.6));
 
     // The baseRewardPerToken should now be the deltaInTime * the baseEmissionRate / cumulativeStaked.
     // i.e baseRewardPerToken = 200 * 0.01 / 10 = 0.1
@@ -53,26 +49,7 @@ describe("AcrossDistributor: Staking Rewards", async function () {
     await advanceTime(timer, 800);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(5));
     // Rewards entitled to the user should now be duration * baseEmissionRate * multiplier as 1000 * 0.01 * 5 = 50
-    expect(await distributor.outstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(50));
-  });
-  it("Single depositor, getRewards token flow", async function () {
-    await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
-
-    // Advance time 200 seconds. Expected rewards are 200 * 0.01 * (1 + 200 / 1000 * (5 - 1)) = 3.6 (same as pervious test).
-    await advanceTime(timer, 200);
-
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
-      // Get the rewards. Check the cash flows are as expected. The distributor should send 3.6 to the depositor.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-3.6), toWei(3.6)]);
-
-    // After claiming the rewards the users multiplier should be reset to 1.
-    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1));
-
-    // Advance time 500 seconds. Expected rewards are 500 * 0.01 * (1 + 500 / 1000 * (5 - 1)) = 15.
-    await advanceTime(timer, 500);
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
-      // Get the rewards. Check the cash flows are as expected. The distributor should send 15 to the depositor.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-15), toWei(15)]);
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(50));
   });
   it("Multiple depositors, pro-rate distribution: same stake time and claim time", async function () {
     // Create a simple situation wherein both depositors deposit at the same time but have varying amounts.
@@ -132,7 +109,7 @@ describe("AcrossDistributor: Staking Rewards", async function () {
 
     // User outstanding rewards should be the base emotion rate * multiplier exclusively allocated to them as
     // 200 * 0.01 * (1+ 200 / 1000 * (5 - 1)) = 3.6.
-    expect(await distributor.outstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(3.6));
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(3.6));
 
     // Now, the second depositor comes in.
     await distributor.connect(depositor2).stake(lpToken1.address, stakeAmount.mul(3)); // stake 30.
@@ -144,25 +121,10 @@ describe("AcrossDistributor: Staking Rewards", async function () {
     // 400 * 0.01 * (1 + 400 / 1000 * (5 - 1)) * (1 / 4 + 1) / 2 = 6.5. This equation can be though as attributing the
     // full period plus the multiplier growing over the full period * (1 / 4 + 1) / 2 which represents that for the first
     // 200 seconds the pro-rate decision is 1 (i.e (1)/2) and for the second 200 seconds it is 1/4 (i.e (1/4)/2).
-    expect(await distributor.outstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(6.5));
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(6.5));
 
     // The depositor2 balance should simply be their prop-rate share of the distribution drawn over the 200 seconds as
     // 200 * 0.01 * (1 + 200 / 1000 * (5 - 1)) * 3/4 = 2.7.
-    expect(await distributor.outstandingRewards(lpToken1.address, depositor2.address)).to.equal(toWei(2.7));
-  });
-  it("Advance time past secondsToMaxMultiplier should cap the multiplier at maxMultiplier", async function () {
-    await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount); // stake 10.
-    await advanceTime(timer, 200);
-
-    // Depositor should have the same multiplier of 1 + 200 / 1000 *(5 - 1) = 1.8.
-    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
-
-    // Advance time to the max secondsToMaxMultiplier (another 800). Multiplier should equal the max multiplier.
-    await advanceTime(timer, 800);
-    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(maxMultiplier);
-
-    //  Advancing time past now should not increase the multiplier any further.
-    await advanceTime(timer, 1000);
-    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(maxMultiplier);
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor2.address)).to.equal(toWei(2.7));
   });
 });

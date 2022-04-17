@@ -1,4 +1,5 @@
-import { getContractFactory, SignerWithAddress, Contract, hre, ethers, BigNumber } from "./utils";
+import { getContractFactory, Contract, hre } from "./utils";
+import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, seedDistributorAmount } from "./constants";
 
 export const acrossDistributorFixture = hre.deployments.createFixture(async ({ ethers }) => {
   const [deployerWallet] = await ethers.getSigners();
@@ -16,3 +17,9 @@ export const acrossDistributorFixture = hre.deployments.createFixture(async ({ e
 
   return { timer, acrossToken, distributor, lpToken1, lpToken2 };
 });
+
+export async function enableTokenForStaking(distributor: Contract, lpToken: Contract, acrossToken: Contract) {
+  // Enable the LpToken for staking and deposit some across tokens into the distributor.
+  await distributor.enableStaking(lpToken.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+  await acrossToken.mint(distributor.address, seedDistributorAmount);
+}

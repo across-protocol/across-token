@@ -14,8 +14,8 @@ import "hardhat/console.sol";
 
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
- * Stakers start by earning their pro-rate share of a baseEmmissionRate per second which increases based on how long
- * they have staked in the contract, up to a maximum of maxEmmissionRate. Multiple LP tokens can be staked in this
+ * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
+ * they have staked in the contract, up to a maximum of maxEmissionRate. Multiple LP tokens can be staked in this
  * contract enabling depositors to batch stake and claim via multicall.
  *
  */
@@ -62,32 +62,11 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
         uint256 secondsToMaxMultiplier,
         uint256 lastUpdateTime
     );
-
     event RecoverErc20(address token, address to, uint256 amount);
-
     event Stake(address token, address user, uint256 amount, uint256 averageDepositTime, uint256 cumulativeBalance);
-
     event Unstake(address token, address user, uint256 amount, uint256 remainingCumulativeBalance);
-
-    event GetReward(address token, address user, uint256 rewardsOutstanding);
-
+    event GetReward(address token, address user, uint256 rewardsToSend);
     event Exit(address token, address user);
-
-    /**************************************
-     *             MODIFIERS              *
-     **************************************/
-
-    modifier updateReward(address stakedToken, address account) {
-        StakingToken storage stakingToken = stakingTokens[stakedToken];
-        stakingToken.rewardPerTokenStored = baseRewardPerToken(stakedToken);
-        stakingToken.lastUpdateTime = getCurrentTime();
-        if (account != address(0)) {
-            UserDeposit storage userDeposit = stakingToken.stakingBalances[account];
-            userDeposit.rewardsOutstanding = outstandingRewards(stakedToken, account);
-            userDeposit.rewardsPaidPerToken = stakingToken.rewardPerTokenStored;
-        }
-        _;
-    }
 
     /**************************************
      *          ADMIN FUNCTIONS           *
@@ -122,16 +101,17 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
             baseEmissionRate,
             maxMultiplier,
             secondsToMaxMultiplier,
-            getCurrentTime()
+            stakingToken.lastUpdateTime
         );
     }
 
     /**
      * @notice Recover an ERC20 token either dropped on the contract or excess after the end of the staking program ends.
+     * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
      * @param tokenAddress The address of the token to recover.
      * @param amount The amount of the token to recover.
      */
-    function recoverERC20(address tokenAddress, uint256 amount) external onlyOwner {
+    function recoverErc20(address tokenAddress, uint256 amount) external {
         require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
         IERC20(tokenAddress).safeTransfer(owner(), amount);
 
@@ -148,14 +128,13 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
      * @param stakedToken The address of the token to stake.
      * @param amount The amount of the token to stake.
      */
-    function stake(address stakedToken, uint256 amount) public nonReentrant updateReward(stakedToken, msg.sender) {
+    function stake(address stakedToken, uint256 amount) public nonReentrant {
         require(stakingTokens[stakedToken].enabled, "Token is not enabled for staking");
+        _updateReward(stakedToken, msg.sender);
 
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
-        uint256 averageDepositTime = userDeposit.averageDepositTime +
-            (amount / (userDeposit.cumulativeBalance + amount)) *
-            (getCurrentTime() - userDeposit.averageDepositTime);
+        uint256 averageDepositTime = getAverageDepositTimePostDeposit(stakedToken, msg.sender, amount);
 
         userDeposit.averageDepositTime = averageDepositTime;
         userDeposit.cumulativeBalance += amount;
@@ -171,39 +150,45 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
      * @param stakedToken The address of the token to withdraw.
      * @param amount The amount of the token to withdraw.
      */
-    function unstake(address stakedToken, uint256 amount) public nonReentrant updateReward(stakedToken, msg.sender) {
+    function unstake(address stakedToken, uint256 amount) public nonReentrant {
+        _updateReward(stakedToken, msg.sender);
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
-        // Note this will revert if underflow so you cant unstake more than your cumulativeBalance.
+        // Note: these will revert if underflow so you cant unstake more than your cumulativeBalance.
         userDeposit.cumulativeBalance -= amount;
-        IERC20(stakedToken).safeTransferFrom(address(this), msg.sender, amount);
+        stakingTokens[stakedToken].cumulativeStaked -= amount;
+
+        IERC20(stakedToken).transfer(msg.sender, amount);
 
         emit Unstake(stakedToken, msg.sender, amount, userDeposit.cumulativeBalance);
     }
 
     /**
      * @notice Get entitled rewards for the staker.
-     * @dev Note that calling this method acts to reset your reward multiplier.
+     * @dev Calling this method will reset the callers reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
-    function getReward(address stakedToken) public nonReentrant updateReward(stakedToken, msg.sender) {
+    function getReward(address stakedToken) public nonReentrant {
+        _updateReward(stakedToken, msg.sender);
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
-        if (userDeposit.rewardsOutstanding > 0) {
-            rewardToken.safeTransfer(msg.sender, userDeposit.rewardsOutstanding);
+        uint256 rewardsToSend = userDeposit.rewardsOutstanding;
+        if (rewardsToSend > 0) {
             userDeposit.rewardsOutstanding = 0;
             userDeposit.averageDepositTime = getCurrentTime();
+            rewardToken.safeTransfer(msg.sender, rewardsToSend);
         }
 
-        emit GetReward(stakedToken, msg.sender, userDeposit.rewardsOutstanding);
+        emit GetReward(stakedToken, msg.sender, rewardsToSend);
     }
 
     /**
      * @notice Exits a staking position by unstaking and getting rewards. This totally exists the staking position.
-     * @dev Note that calling this method acts to reset your reward multiplier.
+     * @dev Calling this method will reset the callers reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
-    function exit(address stakedToken) external updateReward(stakedToken, msg.sender) {
+    function exit(address stakedToken) external {
+        _updateReward(stakedToken, msg.sender);
         unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
         getReward(stakedToken);
 
@@ -214,10 +199,31 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
      *           VIEW FUNCTIONS           *
      **************************************/
 
-    function getCumulativeStakingBalance(address stakedToken, address account) public view returns (uint256) {
-        return stakingTokens[stakedToken].stakingBalances[account].cumulativeBalance;
+    /**
+     * @notice Returns the total staked for a given stakedToken.
+     * @param stakedToken The address of the staked token to query.
+     * @return uint256 Total amount staked of the stakedToken.
+     */
+    function getCumulativeStaked(address stakedToken) public view returns (uint256) {
+        return stakingTokens[stakedToken].cumulativeStaked;
     }
 
+    /**
+     * @notice Returns the all information associated with a user's stake.
+     * @param stakedToken The address of the staked token to query.
+     * @param account The address of user to query.
+     * @return UserDeposit Struct with: {cumulativeBalance,averageDepositTime,rewardsPaidPerToken,rewardsOutstanding}
+     */
+    function getUserStake(address stakedToken, address account) public view returns (UserDeposit memory) {
+        return stakingTokens[stakedToken].stakingBalances[account];
+    }
+
+    /**
+     * @notice Returns the base rewards per staked token for a given staking token. This factors in the last time
+     * any internal logic was called on this contract to correctly attribute retroactive cumulative rewards.
+     * @param stakedToken The address of the staked token to query.
+     * @return uint256 Total base reward per token that will be applied, pro-rata, to stakers.
+     */
     function baseRewardPerToken(address stakedToken) public view returns (uint256) {
         StakingToken storage stakingToken = stakingTokens[stakedToken];
         if (stakingToken.cumulativeStaked == 0) return stakingToken.rewardPerTokenStored;
@@ -228,10 +234,18 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
             stakingToken.cumulativeStaked;
     }
 
+    /**
+     * @notice Returns the multiplier applied to the base reward per staked token for a given staking token and account.
+     * The longer a user stakes the higher their multiplier up to maxMultiplier for that given staking token.
+     * any internal logic was called on this contract to correctly attribute retroactive cumulative rewards.
+     * @param stakedToken The address of the staked token to query.
+     * @param account The address of the user to query.
+     * @return uint256 User multiplier, applied to the baseRewardPerToken, when claiming rewards.
+     */
     function getUserRewardMultiplier(address stakedToken, address account) public view returns (uint256) {
-        if (stakingTokens[stakedToken].stakingBalances[account].averageDepositTime == 0) return 1;
-        uint256 fractionOfMaxMultiplier = ((getCurrentTime() -
-            stakingTokens[stakedToken].stakingBalances[account].averageDepositTime) * 1e18) /
+        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[account];
+        if (userDeposit.averageDepositTime == 0 || userDeposit.cumulativeBalance == 0) return 1e18;
+        uint256 fractionOfMaxMultiplier = ((getTimeFromLastDeposit(stakedToken, account)) * 1e18) /
             stakingTokens[stakedToken].secondsToMaxMultiplier;
 
         // At maximum, the multiplier should be equal to the maxMultiplier.
@@ -239,16 +253,66 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
         return 1e18 + (fractionOfMaxMultiplier * (stakingTokens[stakedToken].maxMultiplier - 1e18)) / (1e18);
     }
 
-    function outstandingRewards(address stakedToken, address account) public view returns (uint256) {
+    /**
+     * @notice Returns the total outstanding rewards entitled to a user for a given staking token. This factors in the
+     * users staking duration (and therefore reward multiplier) and their pro-rata share of the total rewards.
+     * @param stakedToken The address of the staked token to query.
+     * @param account The address of the user to query.
+     * @return uint256 Total outstanding rewards entitled to user.
+     */
+    function getOutstandingRewards(address stakedToken, address account) public view returns (uint256) {
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[account];
 
         uint256 userRewardMultiplier = getUserRewardMultiplier(stakedToken, account);
 
-        return
-            (userDeposit.cumulativeBalance *
-                (baseRewardPerToken(stakedToken) - userDeposit.rewardsPaidPerToken) *
-                userRewardMultiplier) /
-            (1e18 * 1e18) +
-            userDeposit.rewardsOutstanding;
+        uint256 newUserRewards = (userDeposit.cumulativeBalance *
+            (baseRewardPerToken(stakedToken) - userDeposit.rewardsPaidPerToken) *
+            userRewardMultiplier) / (1e18 * 1e18);
+
+        return newUserRewards + userDeposit.rewardsOutstanding;
+    }
+
+    /**
+     * @notice Returns the time that has elapsed between the current time and the last users average deposit time.
+     * @param stakedToken The address of the staked token to query.
+     * @param account The address of the user to query.
+     *@return uint256 Time, in seconds, between the users average deposit time and the current time.
+     */
+    function getTimeFromLastDeposit(address stakedToken, address account) public view returns (uint256) {
+        return getCurrentTime() - stakingTokens[stakedToken].stakingBalances[account].averageDepositTime;
+    }
+
+    /**
+     * @notice Returns a users new average deposit time, considering the addition of a new deposit. This factors in the
+     * cumulative previous deposits, new deposit and time from the last deposit.
+     * @param stakedToken The address of the staked token to query.
+     * @param account The address of the user to query.
+     * @return uint256 Average post deposit time, considering all deposits to date.
+     */
+    function getAverageDepositTimePostDeposit(
+        address stakedToken,
+        address account,
+        uint256 amount
+    ) public view returns (uint256) {
+        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[account];
+        uint256 amountWeightedTime = (((amount * 1e18) / (userDeposit.cumulativeBalance + amount)) *
+            (getTimeFromLastDeposit(stakedToken, account))) / 1e18;
+        return userDeposit.averageDepositTime + amountWeightedTime;
+    }
+
+    /**************************************
+     *         INTERNAL FUNCTIONS         *
+     **************************************/
+
+    // Update the internal counters for a given stakedToken and user.
+    function _updateReward(address stakedToken, address account) internal {
+        StakingToken storage stakingToken = stakingTokens[stakedToken];
+        stakingToken.rewardPerTokenStored = baseRewardPerToken(stakedToken);
+        stakingToken.lastUpdateTime = getCurrentTime();
+        if (account != address(0)) {
+            UserDeposit storage userDeposit = stakingToken.stakingBalances[account];
+            userDeposit.rewardsOutstanding = getOutstandingRewards(stakedToken, account);
+            userDeposit.rewardsPaidPerToken = stakingToken.rewardPerTokenStored;
+        }
     }
 }
