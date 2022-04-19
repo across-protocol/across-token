@@ -1,7 +1,5 @@
 # Across Distributor
 
-## Overview
-
 The Across token distributor facilitates the ACX liquidity mining program that will accompany the launch of the protocol. It is heavily inspired by the Synthetix [StakingRewards.sol](https://github.com/Synthetixio/synthetix/blob/v2.66.2/contracts/StakingRewards.sol) contract, with a number of modifications. The contract will be owned by the Across DAO multisig which will govern parameters such as the whitelisting of new tokens to stake and the configuration thereof.
 
 The core logic of the contract enables stakers to lock up enabled LP tokens to earn rewards. At deposit time depositors earn a fixed base emission rate. The longer they remain staked the higher the reward rate they earn by a reward multiplier (similar to an Ampleforth Geyser). The reward multiplier is capped to some max multiplier, set by the owner of the distributor. Sequential deposits result in an average deposit time as a weighted average of previous deposits. If at any point the depositor claims their rewards their multiplier is reset. Unstaking LP tokens does not reset their multiplier or change their average deposit time, unless all LP tokens are unstaked in which case the multiplier is reset to 0.
