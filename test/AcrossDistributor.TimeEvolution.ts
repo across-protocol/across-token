@@ -60,4 +60,32 @@ describe("AcrossDistributor: Time Evolution", async function () {
     await advanceTime(timer, 1000);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(maxMultiplier);
   });
+  it("Partial unstake behaves as expected with reward multiplier", async function () {
+    await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
+    await advanceTime(timer, 200);
+
+    // Depositor should have the multiplier of 1 + 200 / 1000 * (5 - 1) = 1.8.
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
+
+    // Unstake half of the LP tokens. Should not change the multiplier.
+    await distributor.connect(depositor1).unstake(lpToken1.address, stakeAmount.div(2));
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
+
+    // Multiplier should continue increasing after unstake in the same fashion. Another 200 seconds gives a multiplier
+    // of 1 + 400 / 1000 * (5 - 1) = 2.6.
+    await advanceTime(timer, 200);
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(2.6));
+
+    // Now, remove the rest of the LP tokens. This should reset the multiplier to 1.
+    await distributor.connect(depositor1).unstake(lpToken1.address, stakeAmount.sub(stakeAmount.div(2)));
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1));
+
+    // If the user re-stakes the LP tokens, the multiplier should be 1 with no memory of the previous stake.
+    await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1));
+
+    // Multiplier should now increase as per usual.
+    await advanceTime(timer, 200);
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
+  });
 });

@@ -41,7 +41,7 @@ describe("AcrossDistributor: Reward Token Flow", async function () {
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
 
     // User unstakes. This should send back their LP tokens but seeing they did not claim any rewards their rewards
-    // should remain the same. Their multiplier, however, should have rest as any unstaking action resets it.
+    // should remain the same. Their multiplier, however, should have rest as they unstaked everything.
     await expect(() => distributor.connect(depositor1).unstake(lpToken1.address, stakeAmount))
       // Get the LP tokens back. Check the cash flows are as expected. The distributor should send stakedAmount.
       .to.changeTokenBalances(lpToken1, [distributor, depositor1], [stakeAmount.mul(-1), stakeAmount]);
