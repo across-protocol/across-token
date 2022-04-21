@@ -1,16 +1,16 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, advanceTime, seedAndApproveWallet } from "./utils";
-import { acrossDistributorFixture, enableTokenForStaking } from "./AcrossDistributor.Fixture";
+import { rewardsLockingDistributorFixture, enableTokenForStaking } from "./RewardsLockingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, stakeAmount } from "./constants";
 
-let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract, depositor1: SignerWithAddress;
+let timer: Contract, rewardToken: Contract, distributor: Contract, lpToken1: Contract, depositor1: SignerWithAddress;
 let owner: SignerWithAddress, rando: SignerWithAddress;
 
-describe("AcrossDistributor: Events", async function () {
+describe("RewardsLockingDistributor: Events", async function () {
   beforeEach(async function () {
     [owner, depositor1, rando] = await ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await acrossDistributorFixture());
+    ({ timer, distributor, rewardToken, lpToken1 } = await rewardsLockingDistributorFixture());
 
-    await enableTokenForStaking(distributor, lpToken1, acrossToken);
+    await enableTokenForStaking(distributor, lpToken1, rewardToken);
     await seedAndApproveWallet(depositor1, [lpToken1], distributor);
   });
   it("EnableStaking", async function () {
@@ -24,10 +24,10 @@ describe("AcrossDistributor: Events", async function () {
 
   it("RecoverErc20", async function () {
     const amount = toWei(420);
-    await acrossToken.mint(distributor.address, amount);
-    await expect(distributor.recoverErc20(acrossToken.address, amount))
+    await rewardToken.mint(distributor.address, amount);
+    await expect(distributor.recoverErc20(rewardToken.address, amount))
       .to.emit(distributor, "RecoverErc20")
-      .withArgs(acrossToken.address, owner.address, amount);
+      .withArgs(rewardToken.address, owner.address, amount);
   });
   it("Stake", async function () {
     const time1 = await distributor.getCurrentTime();

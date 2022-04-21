@@ -1,15 +1,15 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, seedAndApproveWallet, toBN, advanceTime } from "./utils";
-import { acrossDistributorFixture, enableTokenForStaking } from "./AcrossDistributor.Fixture";
-import { maxMultiplier, stakeAmount } from "./constants";
+import { rewardsLockingDistributorFixture, enableTokenForStaking } from "./RewardsLockingDistributor.Fixture";
+import { stakeAmount } from "./constants";
 
-let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract;
+let timer: Contract, rewardToken: Contract, distributor: Contract, lpToken1: Contract;
 let owner: SignerWithAddress, depositor1: SignerWithAddress, depositor2: SignerWithAddress;
 
-describe("AcrossDistributor: Staking Rewards", async function () {
+describe("RewardsLockingDistributor: Staking Rewards", async function () {
   beforeEach(async function () {
     [owner, depositor1, depositor2] = await ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await acrossDistributorFixture());
-    await enableTokenForStaking(distributor, lpToken1, acrossToken);
+    ({ timer, distributor, rewardToken, lpToken1 } = await rewardsLockingDistributorFixture());
+    await enableTokenForStaking(distributor, lpToken1, rewardToken);
     await seedAndApproveWallet(depositor1, [lpToken1], distributor);
     await seedAndApproveWallet(depositor2, [lpToken1], distributor);
   });
@@ -63,11 +63,11 @@ describe("AcrossDistributor: Staking Rewards", async function () {
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
     await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 0.9 to the depositor1.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-0.9), toWei(0.9)]);
+      .to.changeTokenBalances(rewardToken, [distributor, depositor1], [toWei(-0.9), toWei(0.9)]);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor2.address)).to.equal(toWei(1.8));
     await expect(() => distributor.connect(depositor2).getReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 2.7 to the depositor2.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor2], [toWei(-2.7), toWei(2.7)]);
+      .to.changeTokenBalances(rewardToken, [distributor, depositor2], [toWei(-2.7), toWei(2.7)]);
   });
   it("Multiple depositors, pro-rate distribution: same stake time and separate claim time", async function () {
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount); // stake 10.
@@ -93,12 +93,12 @@ describe("AcrossDistributor: Staking Rewards", async function () {
     // This should be 500 * 0.01 * 3 * 1/4 = 3.75.
     await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 3.75 to the depositor1.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-3.75), toWei(3.75)]);
+      .to.changeTokenBalances(rewardToken, [distributor, depositor1], [toWei(-3.75), toWei(3.75)]);
     // Depositor2 should be entitled to 3/4th of of the rewards, accumulated from the previous time they claimed, multiple
     // by their reduced multiplier. This should be 300 * 0.01 * 2.2 * 3/4 = 4.95
     await expect(() => distributor.connect(depositor2).getReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 4.49 to the depositor2.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor2], [toWei(-4.95), toWei(4.95)]);
+      .to.changeTokenBalances(rewardToken, [distributor, depositor2], [toWei(-4.95), toWei(4.95)]);
   });
   it("Multiple depositors, pro-rate distribution: separate stake time and separate claim time", async function () {
     // Stake with one user, advance time, then stake with another use. We should be able to track the evaluation of the

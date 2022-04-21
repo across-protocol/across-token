@@ -13,14 +13,14 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 import "hardhat/console.sol";
 
 /**
- * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
+ * @notice Reward locking distributor contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
  * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
  * they have staked in the contract, up to a maximum of maxEmissionRate. Multiple LP tokens can be staked in this
  * contract enabling depositors to batch stake and claim via multicall.
  *
  */
 
-contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
+contract RewardsLockingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
     IERC20 public rewardToken;

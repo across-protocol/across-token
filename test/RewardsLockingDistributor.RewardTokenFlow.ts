@@ -1,15 +1,15 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, seedAndApproveWallet, toBN, advanceTime } from "./utils";
-import { acrossDistributorFixture, enableTokenForStaking } from "./AcrossDistributor.Fixture";
+import { rewardsLockingDistributorFixture, enableTokenForStaking } from "./RewardsLockingDistributor.Fixture";
 import { stakeAmount, seedWalletAmount, seedDistributorAmount } from "./constants";
 
-let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract, depositor1: SignerWithAddress;
+let timer: Contract, rewardToken: Contract, distributor: Contract, lpToken1: Contract, depositor1: SignerWithAddress;
 
-describe("AcrossDistributor: Reward Token Flow", async function () {
+describe("RewardsLockingDistributor: Reward Token Flow", async function () {
   beforeEach(async function () {
     [, depositor1] = await ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await acrossDistributorFixture());
+    ({ timer, distributor, rewardToken, lpToken1 } = await rewardsLockingDistributorFixture());
 
-    await enableTokenForStaking(distributor, lpToken1, acrossToken);
+    await enableTokenForStaking(distributor, lpToken1, rewardToken);
     await seedAndApproveWallet(depositor1, [lpToken1], distributor);
   });
 
@@ -21,7 +21,7 @@ describe("AcrossDistributor: Reward Token Flow", async function () {
 
     await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 3.6 to the depositor.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-3.6), toWei(3.6)]);
+      .to.changeTokenBalances(rewardToken, [distributor, depositor1], [toWei(-3.6), toWei(3.6)]);
 
     // After claiming the rewards the users multiplier should be reset to 1.
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1));
@@ -30,7 +30,7 @@ describe("AcrossDistributor: Reward Token Flow", async function () {
     await advanceTime(timer, 500);
     await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 15 to the depositor.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-15), toWei(15)]);
+      .to.changeTokenBalances(rewardToken, [distributor, depositor1], [toWei(-15), toWei(15)]);
   });
   it("Unstake token flow", async function () {
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
@@ -71,7 +71,7 @@ describe("AcrossDistributor: Reward Token Flow", async function () {
       .to.changeTokenBalances(lpToken1, [distributor, depositor1], [stakeAmount.mul(-1), stakeAmount]);
     await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 10.2 to the depositor1.
-      .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(10.2).mul(-1), toWei(10.2)]);
+      .to.changeTokenBalances(rewardToken, [distributor, depositor1], [toWei(10.2).mul(-1), toWei(10.2)]);
     expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(0));
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1));
 
@@ -93,7 +93,7 @@ describe("AcrossDistributor: Reward Token Flow", async function () {
     expect(await lpToken1.balanceOf(distributor.address)).to.equal(toBN(0));
     expect(await lpToken1.balanceOf(depositor1.address)).to.equal(toBN(seedWalletAmount));
     const expectedRewards = toWei(3.6);
-    expect(await acrossToken.balanceOf(distributor.address)).to.equal(seedDistributorAmount.sub(expectedRewards));
-    expect(await acrossToken.balanceOf(depositor1.address)).to.equal(expectedRewards);
+    expect(await rewardToken.balanceOf(distributor.address)).to.equal(seedDistributorAmount.sub(expectedRewards));
+    expect(await rewardToken.balanceOf(depositor1.address)).to.equal(expectedRewards);
   });
 });
