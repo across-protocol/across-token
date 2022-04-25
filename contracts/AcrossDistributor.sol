@@ -46,6 +46,16 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
 
     mapping(address => StakingToken) public stakingTokens;
 
+    modifier onlyEnabled(address stakedToken) {
+        require(stakingTokens[stakedToken].enabled, "stakedToken not enabled");
+        _;
+    }
+
+    modifier onlyInitialized(address stakedToken) {
+        require(stakingTokens[stakedToken].lastUpdateTime != 0, "stakedToken not initialized");
+        _;
+    }
+
     constructor(address _rewardToken, address _timer) Testable(_timer) {
         rewardToken = IERC20(_rewardToken);
     }
@@ -87,7 +97,14 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
         uint256 maxMultiplier,
         uint256 secondsToMaxMultiplier
     ) public onlyOwner {
+        // Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
+        // payouts could eat into user balances.
+        require(stakedToken != address(rewardToken), "Staked token is reward token");
+
         StakingToken storage stakingToken = stakingTokens[stakedToken];
+
+        // If this token is already initialized, make sure we update the rewards before modifying any params.
+        if (stakingToken.lastUpdateTime != 0) _updateReward(stakedToken, address(0));
 
         stakingToken.enabled = enabled;
         stakingToken.baseEmissionRate = baseEmissionRate;
@@ -128,8 +145,7 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
      * @param stakedToken The address of the token to stake.
      * @param amount The amount of the token to stake.
      */
-    function stake(address stakedToken, uint256 amount) public nonReentrant {
-        require(stakingTokens[stakedToken].enabled, "Token is not enabled for staking");
+    function stake(address stakedToken, uint256 amount) public nonReentrant onlyEnabled(stakedToken) {
         _updateReward(stakedToken, msg.sender);
 
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
@@ -150,7 +166,7 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
      * @param stakedToken The address of the token to withdraw.
      * @param amount The amount of the token to withdraw.
      */
-    function unstake(address stakedToken, uint256 amount) public nonReentrant {
+    function unstake(address stakedToken, uint256 amount) public nonReentrant onlyInitialized(stakedToken) {
         _updateReward(stakedToken, msg.sender);
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
@@ -168,7 +184,7 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
      * @dev Calling this method will reset the callers reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
-    function getReward(address stakedToken) public nonReentrant {
+    function getReward(address stakedToken) public nonReentrant onlyInitialized(stakedToken) {
         _updateReward(stakedToken, msg.sender);
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
@@ -187,7 +203,7 @@ contract AcrossDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Mult
      * @dev Calling this method will reset the callers reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
-    function exit(address stakedToken) external {
+    function exit(address stakedToken) external onlyInitialized(stakedToken) {
         _updateReward(stakedToken, msg.sender);
         unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
         getReward(stakedToken);
