@@ -1,14 +1,14 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, seedAndApproveWallet, toBN, advanceTime } from "./utils";
-import { rewardsLockingDistributorFixture, enableTokenForStaking } from "./RewardsLockingDistributor.Fixture";
+import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
 import { maxMultiplier, stakeAmount } from "./constants";
 
 let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract;
 let owner: SignerWithAddress, depositor1: SignerWithAddress, depositor2: SignerWithAddress;
 
-describe("RewardsLockingDistributor: Time Evolution", async function () {
+describe("AcceleratingDistributor: Time Evolution", async function () {
   beforeEach(async function () {
     [owner, depositor1] = await ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await rewardsLockingDistributorFixture());
+    ({ timer, distributor, acrossToken, lpToken1 } = await acceleratingDistributorFixture());
     await enableTokenForStaking(distributor, lpToken1, acrossToken);
     await seedAndApproveWallet(depositor1, [lpToken1], distributor);
   });

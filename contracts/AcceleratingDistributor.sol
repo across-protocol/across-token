@@ -20,7 +20,7 @@ import "hardhat/console.sol";
  *
  */
 
-contract RewardsLockingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
+contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
     IERC20 public rewardToken;
