@@ -1,5 +1,5 @@
 import { Contract } from "./utils";
-export declare const acrossDistributorFixture: (options?: unknown) => Promise<{
+export declare const rewardsLockingDistributorFixture: (options?: unknown) => Promise<{
   timer: Contract;
   acrossToken: Contract;
   distributor: Contract;

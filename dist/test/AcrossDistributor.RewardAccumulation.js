@@ -1,15 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
-const AcrossDistributor_Fixture_1 = require("./AcrossDistributor.Fixture");
+const RewardsLockingDistributor_Fixture_1 = require("./RewardsLockingDistributor.Fixture");
 const constants_1 = require("./constants");
 let timer, acrossToken, distributor, lpToken1;
 let owner, depositor1, depositor2;
 const stakeAmount = (0, utils_1.toWei)(10);
-describe("AcrossDistributor: Staking Rewards", async function () {
+describe("RewardsLockingDistributor: Staking Rewards", async function () {
   beforeEach(async function () {
     [owner, depositor1, depositor2] = await utils_1.ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await (0, AcrossDistributor_Fixture_1.acrossDistributorFixture)());
+    ({ timer, distributor, acrossToken, lpToken1 } = await (0,
+    RewardsLockingDistributor_Fixture_1.rewardsLockingDistributorFixture)());
     // Enable the LpToken for staking and deposit some across tokens into the distributor.
     await distributor.enableStaking(
       lpToken1.address,

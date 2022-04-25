@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
-const AcrossDistributor_Fixture_1 = require("./AcrossDistributor.Fixture");
+const RewardsLockingDistributor_Fixture_1 = require("./RewardsLockingDistributor.Fixture");
 let acrossToken, owner, rando;
 describe("AcrossToken: Parameterization", async function () {
   beforeEach(async function () {
     [owner, rando] = await utils_1.ethers.getSigners();
-    ({ acrossToken } = await (0, AcrossDistributor_Fixture_1.acrossDistributorFixture)());
+    ({ acrossToken } = await (0, RewardsLockingDistributor_Fixture_1.rewardsLockingDistributorFixture)());
   });
   it("Token config set correctly", async function () {
     (0, utils_1.expect)(await acrossToken.name()).to.equal("Across Protocol Token");

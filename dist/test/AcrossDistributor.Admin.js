@@ -1,14 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
-const AcrossDistributor_Fixture_1 = require("./AcrossDistributor.Fixture");
+const RewardsLockingDistributor_Fixture_1 = require("./RewardsLockingDistributor.Fixture");
 const constants_1 = require("./constants");
 let timer, acrossToken, distributor, lpToken1, lpToken2;
 let owner, rando;
-describe("AcrossDistributor: Admin Functions", async function () {
+describe("RewardsLockingDistributor: Admin Functions", async function () {
   beforeEach(async function () {
     [owner, rando] = await utils_1.ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await (0, AcrossDistributor_Fixture_1.acrossDistributorFixture)());
+    ({ timer, distributor, acrossToken, lpToken1 } = await (0,
+    RewardsLockingDistributor_Fixture_1.rewardsLockingDistributorFixture)());
   });
   it("Enable token for staking", async function () {
     (0, utils_1.expect)((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
