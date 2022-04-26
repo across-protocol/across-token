@@ -311,6 +311,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         uint256 amount
     ) public view returns (uint256) {
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[account];
+        if (amount == 0) return userDeposit.averageDepositTime;
         uint256 amountWeightedTime = (((amount * 1e18) / (userDeposit.cumulativeBalance + amount)) *
             (getTimeFromLastDeposit(stakedToken, account))) / 1e18;
         return userDeposit.averageDepositTime + amountWeightedTime;
