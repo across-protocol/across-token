@@ -1,7 +1,7 @@
 import { getContractFactory, Contract, hre } from "./utils";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, seedDistributorAmount } from "./constants";
 
-export const acrossDistributorFixture = hre.deployments.createFixture(async ({ ethers }) => {
+export const acceleratingDistributorFixture = hre.deployments.createFixture(async ({ ethers }) => {
   const [deployerWallet] = await ethers.getSigners();
 
   const timer = await (await getContractFactory("Timer", deployerWallet)).deploy();
@@ -9,7 +9,7 @@ export const acrossDistributorFixture = hre.deployments.createFixture(async ({ e
   const acrossToken = await (await getContractFactory("AcrossToken", deployerWallet)).deploy();
 
   const distributor = await (
-    await getContractFactory("AcrossDistributor", deployerWallet)
+    await getContractFactory("AcceleratingDistributor", deployerWallet)
   ).deploy(acrossToken.address, timer.address);
 
   const lpToken1 = await (await getContractFactory("TestToken", deployerWallet)).deploy("LP1", "LP Token 1");
