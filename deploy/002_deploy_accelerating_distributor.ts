@@ -7,7 +7,7 @@ const func = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts();
   const AcrossToken = await deployments.getOrNull("AcrossToken");
 
-  await deploy("AcrossDistributor", {
+  await deploy("AcceleratingDistributor", {
     from: deployer,
     log: true,
     skipIfAlreadyDeployed: true,
@@ -16,4 +16,4 @@ const func = async function (hre: HardhatRuntimeEnvironment) {
 };
 
 module.exports = func;
-func.tags = ["AcrossDistributor", "mainnet"];
+func.tags = ["AcceleratingDistributor", "mainnet"];

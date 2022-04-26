@@ -1,14 +1,14 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./utils";
-import { acrossDistributorFixture } from "./AcrossDistributor.Fixture";
+import { acceleratingDistributorFixture } from "./AcceleratingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
 let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract, lpToken2: Contract;
 let owner: SignerWithAddress, rando: SignerWithAddress;
 
-describe("AcrossDistributor: Admin Functions", async function () {
+describe("AcceleratingDistributor: Admin Functions", async function () {
   beforeEach(async function () {
     [owner, rando] = await ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await acrossDistributorFixture());
+    ({ timer, distributor, acrossToken, lpToken1 } = await acceleratingDistributorFixture());
   });
   it("Enable token for staking", async function () {
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
