@@ -25,16 +25,16 @@ describe("AcceleratingDistributor: Events", async function () {
   it("RecoverErc20", async function () {
     const amount = toWei(420);
     await acrossToken.mint(distributor.address, amount);
-    await expect(distributor.recoverErc20(acrossToken.address, amount))
+    await expect(distributor.connect(rando).recoverErc20(acrossToken.address, amount))
       .to.emit(distributor, "RecoverErc20")
-      .withArgs(acrossToken.address, owner.address, amount);
+      .withArgs(acrossToken.address, owner.address, amount, rando.address);
   });
   it("Stake", async function () {
     const time1 = await distributor.getCurrentTime();
 
     await expect(distributor.connect(depositor1).stake(lpToken1.address, stakeAmount))
       .to.emit(distributor, "Stake")
-      .withArgs(lpToken1.address, depositor1.address, stakeAmount, time1, stakeAmount);
+      .withArgs(lpToken1.address, depositor1.address, stakeAmount, time1, stakeAmount, stakeAmount);
 
     // Subsequent stakes emit expected event. Advance time 420 seconds and stake 2x the amount.
     await advanceTime(timer, 420);
@@ -44,7 +44,14 @@ describe("AcceleratingDistributor: Events", async function () {
     );
     await expect(distributor.connect(depositor1).stake(lpToken1.address, stakeAmount.mul(2)))
       .to.emit(distributor, "Stake")
-      .withArgs(lpToken1.address, depositor1.address, stakeAmount.mul(2), avgDepositTime, stakeAmount.mul(3));
+      .withArgs(
+        lpToken1.address,
+        depositor1.address,
+        stakeAmount.mul(2),
+        avgDepositTime,
+        stakeAmount.mul(3),
+        stakeAmount.mul(3)
+      );
   });
   it("Unstake", async function () {
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
@@ -52,21 +59,29 @@ describe("AcceleratingDistributor: Events", async function () {
     // Unstake 1/3. Should see associated event.
     await expect(distributor.connect(depositor1).unstake(lpToken1.address, stakeAmount.div(3)))
       .to.emit(distributor, "Unstake")
-      .withArgs(lpToken1.address, depositor1.address, stakeAmount.div(3), stakeAmount.mul(2).div(3).add(1)); // Add 1 to deal with rounding.
+      .withArgs(
+        lpToken1.address,
+        depositor1.address,
+        stakeAmount.div(3),
+        stakeAmount.mul(2).div(3).add(1),
+        stakeAmount.mul(2).div(3).add(1)
+      ); // Add 1 to deal with rounding.
 
     // Unstake the remaining should emit the rest.
     await expect(distributor.connect(depositor1).unstake(lpToken1.address, stakeAmount.mul(2).div(3).add(1)))
       .to.emit(distributor, "Unstake")
-      .withArgs(lpToken1.address, depositor1.address, stakeAmount.mul(2).div(3).add(1), 0);
+      .withArgs(lpToken1.address, depositor1.address, stakeAmount.mul(2).div(3).add(1), 0, 0);
   });
   it("GetRewards", async function () {
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
 
-    // Advance 200. should be entitled to 200 * 0.01 * (1 + 200 / 1000 * (5 - 1)) = 3.6
+    // Advance 200. should be entitled to 200 * 0.01 * (1 + 200 / 1000 * (5 - 1)) = 3.6.
+    // Reward paid per token should be 200 * 0.01 or 0.2.
     await advanceTime(timer, 200);
+    const currentTime = await distributor.getCurrentTime();
     await expect(distributor.connect(depositor1).getReward(lpToken1.address))
       .to.emit(distributor, "GetReward")
-      .withArgs(lpToken1.address, depositor1.address, toWei(3.6));
+      .withArgs(lpToken1.address, depositor1.address, toWei(3.6), currentTime, toWei(0.2), 0, toWei(0.2));
   });
   it("Exit", async function () {
     // Exit calls unstake and getRewards. We've tested these events already so nothing needed on those. Just test Exit.
@@ -75,7 +90,7 @@ describe("AcceleratingDistributor: Events", async function () {
     await advanceTime(timer, 200);
     await expect(distributor.connect(depositor1).exit(lpToken1.address))
       .to.emit(distributor, "Exit")
-      .withArgs(lpToken1.address, depositor1.address);
+      .withArgs(lpToken1.address, depositor1.address, 0);
   });
 });
 ``;
