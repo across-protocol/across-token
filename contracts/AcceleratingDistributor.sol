@@ -23,7 +23,7 @@ import "hardhat/console.sol";
 contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
-    IERC20 public rewardToken;
+    IERC20 public immutable rewardToken;
 
     // Each User deposit is tracked with the information below.
     struct UserDeposit {
