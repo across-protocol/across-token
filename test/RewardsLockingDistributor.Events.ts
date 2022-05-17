@@ -1,4 +1,5 @@
-import { expect, ethers, Contract, SignerWithAddress, toWei, advanceTime, seedAndApproveWallet } from "./utils";
+import { toWei, advanceTime, seedAndApproveWallet, getContractFactory } from "./utils";
+import { expect, ethers, Contract, SignerWithAddress } from "./utils";
 import { rewardsLockingDistributorFixture, enableTokenForStaking } from "./RewardsLockingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, stakeAmount } from "./constants";
 
@@ -23,11 +24,12 @@ describe("RewardsLockingDistributor: Events", async function () {
   });
 
   it("RecoverErc20", async function () {
+    const randomToken = await (await getContractFactory("TestToken", owner)).deploy("RANDO TOKEN", "RANDO");
     const amount = toWei(420);
-    await rewardToken.mint(distributor.address, amount);
-    await expect(distributor.recoverErc20(rewardToken.address, amount))
+    await randomToken.mint(distributor.address, amount);
+    await expect(distributor.recoverErc20(randomToken.address, amount))
       .to.emit(distributor, "RecoverErc20")
-      .withArgs(rewardToken.address, owner.address, amount);
+      .withArgs(randomToken.address, owner.address, amount);
   });
   it("Stake", async function () {
     const time1 = await distributor.getCurrentTime();

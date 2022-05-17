@@ -1,14 +1,14 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei } from "./utils";
-import { rewardsLockingDistributorFixture } from "./RewardsLockingDistributor.Fixture";
+import { rewardsLockingDistributorFixture, enableTokenForStaking } from "./RewardsLockingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
-let timer: Contract, distributor: Contract, lpToken1: Contract;
+let timer: Contract, distributor: Contract, lpToken1: Contract, rewardToken: Contract;
 let owner: SignerWithAddress, rando: SignerWithAddress;
 
 describe("RewardsLockingDistributor: Admin Functions", async function () {
   beforeEach(async function () {
     [owner, rando] = await ethers.getSigners();
-    ({ timer, distributor, lpToken1 } = await rewardsLockingDistributorFixture());
+    ({ timer, distributor, lpToken1, rewardToken } = await rewardsLockingDistributorFixture());
   });
   it("Enable token for staking", async function () {
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
@@ -31,11 +31,16 @@ describe("RewardsLockingDistributor: Admin Functions", async function () {
   });
 
   it("Can not recover staking tokens", async function () {
-    // Should not be able to recover staking tokens.
     await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
     await lpToken1.mint(distributor.address, toWei(420));
     await expect(distributor.recoverErc20(lpToken1.address, toWei(420))).to.be.revertedWith(
       "Can't recover staking token"
+    );
+  });
+  it("Can not recover reward token", async function () {
+    await enableTokenForStaking(distributor, lpToken1, rewardToken);
+    await expect(distributor.recoverErc20(rewardToken.address, toWei(420))).to.be.revertedWith(
+      "Can't recover reward token"
     );
   });
 

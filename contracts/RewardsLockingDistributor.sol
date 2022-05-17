@@ -17,7 +17,6 @@ import "hardhat/console.sol";
  * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
  * they have staked in the contract, up to a maximum of maxEmissionRate. Multiple LP tokens can be staked in this
  * contract enabling depositors to batch stake and claim via multicall.
- *
  */
 
 contract RewardsLockingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
@@ -113,6 +112,7 @@ contract RewardsLockingDistributor is Testable, ReentrancyGuard, Pausable, Ownab
      */
     function recoverErc20(address tokenAddress, uint256 amount) external {
         require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
+        require(tokenAddress != address(rewardToken), "Can't recover reward token");
         IERC20(tokenAddress).safeTransfer(owner(), amount);
 
         emit RecoverErc20(tokenAddress, owner(), amount);
