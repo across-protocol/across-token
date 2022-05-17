@@ -97,14 +97,14 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         uint256 maxMultiplier,
         uint256 secondsToMaxMultiplier
     ) public onlyOwner {
-        // Validate input to ensure system stability and avoid unexpected behavior.
+        // Validate input to ensure system stability and avoid unexpected behavior. Note we dont place a lower bound on
+        // the baseEmissionRate. If this value is less than 1 then you will slowly loose your staking rewards over time.
         // Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
         // payouts could eat into user balances.
         require(stakedToken != address(rewardToken), "Staked token is reward token");
-        require(maxMultiplier > 1e18, "maxMultiplier be larger than 1");
-        require(maxMultiplier < 1000000000e18, "maxMultiplier can not be set too large");
+        require(maxMultiplier < 1e36, "maxMultiplier can not be set too large");
         require(secondsToMaxMultiplier > 0, "secondsToMaxMultiplier must be greater than 0");
-        require(baseEmissionRate < 1000000000e18, "baseEmissionRate can not be set too large");
+        require(baseEmissionRate < 1e27, "baseEmissionRate can not be set too large");
 
         StakingToken storage stakingToken = stakingTokens[stakedToken];
 
