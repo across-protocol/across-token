@@ -16,8 +16,9 @@ import "hardhat/console.sol";
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
  * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
  * they have staked in the contract, up to a maximum of maxEmissionRate. Multiple LP tokens can be staked in this
- * contract enabling depositors to batch stake and claim via multicall.
- *
+ * contract enabling depositors to batch stake and claim via multicall. Note that this contract is only compatible with
+ * standard ERC20 tokens, and not tokens that charge fees on transfers or dynamically change ballance. It's up to the
+ * contract owner to ensure they only add supported tokens.
  */
 
 contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
@@ -84,6 +85,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
 
     /**
      * @notice Enable a token for staking.
+     * @dev The owner should ensure that the token enabled is a standard ERC20 token to ensure correct functionality.
      * @param stakedToken The address of the token that can be staked.
      * @param enabled Whether the token is enabled for staking.
      * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rate between all users.
@@ -128,7 +130,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      * @param tokenAddress The address of the token to recover.
      * @param amount The amount of the token to recover.
      */
-    function recoverErc20(address tokenAddress, uint256 amount) external {
+    function recoverErc20(address tokenAddress, uint256 amount) external nonReentrant {
         require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
         IERC20(tokenAddress).safeTransfer(owner(), amount);
 
