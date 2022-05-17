@@ -14,7 +14,7 @@ import "hardhat/console.sol";
 
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
- * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
+ * Stakers start by earning their pro-rata share of a baseEmissionRate per second which increases based on how long
  * they have staked in the contract, up to a maximum of maxEmissionRate. Multiple LP tokens can be staked in this
  * contract enabling depositors to batch stake and claim via multicall.
  *
@@ -86,7 +86,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      * @notice Enable a token for staking.
      * @param stakedToken The address of the token that can be staked.
      * @param enabled Whether the token is enabled for staking.
-     * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rate between all users.
+     * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rata between all users.
      * @param maxMultiplier The maximum multiplier for staking which increases your rewards the longer you stake.
      * @param secondsToMaxMultiplier The number of seconds needed to stake to reach the maximum multiplier.
      */
@@ -123,7 +123,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     }
 
     /**
-     * @notice Recover an ERC20 token either dropped on the contract or excess after the end of the staking program ends.
+     * @notice Recover an ERC20 token either dropped on the contract or excess after the staking program ends.
      * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
      * @param tokenAddress The address of the token to recover.
      * @param amount The amount of the token to recover.
@@ -181,7 +181,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
 
     /**
      * @notice Get entitled rewards for the staker.
-     * @dev Calling this method will reset the callers reward multiplier.
+     * @dev Calling this method will reset the caller's reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
     function getReward(address stakedToken) public nonReentrant onlyInitialized(stakedToken) {
@@ -199,8 +199,8 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     }
 
     /**
-     * @notice Exits a staking position by unstaking and getting rewards. This totally exists the staking position.
-     * @dev Calling this method will reset the callers reward multiplier.
+     * @notice Exits a staking position by unstaking and getting rewards. This totally exits the staking position.
+     * @dev Calling this method will reset the caller's reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
     function exit(address stakedToken) external onlyInitialized(stakedToken) {
@@ -225,7 +225,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     }
 
     /**
-     * @notice Returns the all information associated with a user's stake.
+     * @notice Returns all the information associated with a user's stake.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of user to query.
      * @return UserDeposit Struct with: {cumulativeBalance,averageDepositTime,rewardsPaidPerToken,rewardsOutstanding}
