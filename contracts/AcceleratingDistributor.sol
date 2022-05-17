@@ -122,8 +122,10 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
 
     /**
      * @notice Recover an ERC20 token either dropped on the contract or excess after the end of the staking program ends.
-     * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
-     * @dev the owner of this contract unilaterally controls who receives these funds.
+     * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor. The
+     * owner of this contract unilaterally controls who receives these funds as the owner can transfer ownership.
+     * @dev When recovering a staking token then this method acts like a traditional "skim" method where any excess
+     * tokens above and beyond what the contract thinks it should hold is recoverable.
      * @param tokenAddress The address of the token to recover.
      */
     function recoverErc20(address tokenAddress) external {
