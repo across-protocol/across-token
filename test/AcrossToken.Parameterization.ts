@@ -1,12 +1,12 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei } from "./utils";
-import { rewardsLockingDistributorFixture } from "./RewardsLockingDistributor.Fixture";
+import { acceleratingDistributorFixture } from "./AcceleratingDistributor.Fixture";
 
 let rewardToken: Contract, owner: SignerWithAddress, rando: SignerWithAddress;
 
-describe("AcrossToken: Parameterization", async function () {
+describe("rewardToken: Parameterization", async function () {
   beforeEach(async function () {
     [owner, rando] = await ethers.getSigners();
-    ({ rewardToken } = await rewardsLockingDistributorFixture());
+    ({ rewardToken } = await acceleratingDistributorFixture());
   });
   it("Token config set correctly", async function () {
     expect(await rewardToken.name()).to.equal("Across Protocol Token");
