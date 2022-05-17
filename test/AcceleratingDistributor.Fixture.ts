@@ -9,7 +9,7 @@ export const acceleratingDistributorFixture = hre.deployments.createFixture(asyn
   const acrossToken = await (await getContractFactory("AcrossToken", deployerWallet)).deploy();
 
   const distributor = await (
-    await getContractFactory("AcceleratingDistributor", deployerWallet)
+    await getContractFactory("AcceleratingDistributor_Testable", deployerWallet)
   ).deploy(acrossToken.address, timer.address);
 
   const lpToken1 = await (await getContractFactory("TestToken", deployerWallet)).deploy("LP1", "LP Token 1");

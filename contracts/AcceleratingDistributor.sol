@@ -20,7 +20,7 @@ import "hardhat/console.sol";
  *
  */
 
-contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
+contract AcceleratingDistributor_Testable is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
     IERC20 public rewardToken;
@@ -331,5 +331,17 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
             userDeposit.rewardsOutstanding = getOutstandingRewards(stakedToken, account);
             userDeposit.rewardsPaidPerToken = stakingToken.rewardPerTokenStored;
         }
+    }
+}
+
+// Production version of the AcceleratingDistributor that forces the timer address to 0 to ensure no posable misconfiguration.
+contract AcceleratingDistributor is AcceleratingDistributor_Testable {
+    constructor(address _rewardToken)
+        AcceleratingDistributor_Testable(_rewardToken, 0x0000000000000000000000000000000000000000)
+    {}
+
+    // Override Testable implementation of the same logic for small gas saving.
+    function getCurrentTime() public view override returns (uint256) {
+        return block.timestamp; // solhint-disable-line not-rely-on-time
     }
 }

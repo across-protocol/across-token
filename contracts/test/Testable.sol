@@ -43,10 +43,7 @@ abstract contract Testable {
      * @return uint for the current Testable timestamp.
      */
     function getCurrentTime() public view virtual returns (uint256) {
-        if (timerAddress != address(0x0)) {
-            return Timer(timerAddress).getCurrentTime();
-        } else {
-            return block.timestamp; // solhint-disable-line not-rely-on-time
-        }
+        if (timerAddress != address(0x0)) return Timer(timerAddress).getCurrentTime();
+        else return block.timestamp; // solhint-disable-line not-rely-on-time
     }
 }
