@@ -10,8 +10,6 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
  * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
@@ -125,14 +123,20 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     /**
      * @notice Recover an ERC20 token either dropped on the contract or excess after the end of the staking program ends.
      * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
+     * @dev the owner of this contract unilaterally controls who receives these funds.
      * @param tokenAddress The address of the token to recover.
-     * @param amount The amount of the token to recover.
      */
-    function recoverErc20(address tokenAddress, uint256 amount) external {
-        require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
+    function recoverErc20(address tokenAddress) external {
         require(tokenAddress != address(rewardToken), "Can't recover reward token");
-        IERC20(tokenAddress).safeTransfer(owner(), amount);
 
+        // The amount to recover should be the full balance of the token owned by this contract.
+        uint256 amount = IERC20(tokenAddress).balanceOf(address(this));
+        // If the token is an enabled staking token then we want to preform a "skim" action where we send back any extra
+        // tokens that are not accounted for in the cumulativeStaked variable. This lets us recover extra tokens sent
+        // to the contract that were not explicitly staked.
+        if (stakingTokens[tokenAddress].lastUpdateTime != 0) amount -= stakingTokens[tokenAddress].cumulativeStaked;
+        require(amount > 0, "Can't recover 0 tokens");
+        IERC20(tokenAddress).safeTransfer(owner(), amount);
         emit RecoverErc20(tokenAddress, owner(), amount);
     }
 

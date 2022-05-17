@@ -1,4 +1,4 @@
-import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./utils";
+import { expect, ethers, Contract, SignerWithAddress, toWei, getContractFactory } from "./utils";
 import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
@@ -30,18 +30,45 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
   });
 
-  it("Can not recover staking tokens", async function () {
+  it("Can only recover excess staked non-staked tokens", async function () {
     await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+    // Drop tokens directly onto the contract. Should be able to recover all of them, even though tis is the staked token.
     await lpToken1.mint(distributor.address, toWei(420));
-    await expect(distributor.recoverErc20(lpToken1.address, toWei(420))).to.be.revertedWith(
-      "Can't recover staking token"
+    await expect(() => distributor.recoverErc20(lpToken1.address)).to.changeTokenBalances(
+      lpToken1,
+      [distributor, owner],
+      [toWei(420).mul(-1), toWei(420)]
     );
+
+    // Stake tokens. Should not be able to recover as no excess.
+    await lpToken1.mint(rando.address, toWei(69));
+    await lpToken1.connect(rando).approve(distributor.address, toWei(69));
+    await distributor.connect(rando).stake(lpToken1.address, toWei(69));
+    await expect(distributor.recoverErc20(lpToken1.address)).to.be.revertedWith("Can't recover 0 tokens");
+
+    // Mint additional tokens to the contract to simulate someone dropping them accidentally. This should be recoverable.
+    await lpToken1.mint(distributor.address, toWei(696));
+    await expect(() => distributor.recoverErc20(lpToken1.address)).to.changeTokenBalances(
+      lpToken1,
+      [distributor, owner],
+      [toWei(696).mul(-1), toWei(696)]
+    );
+
+    // The contract should be left with the original stake amount in it as this was not recoverable.
+    expect(await lpToken1.balanceOf(distributor.address)).to.equal(toWei(69));
+    await expect(distributor.recoverErc20(lpToken1.address)).to.be.revertedWith("Can't recover 0 tokens");
+  });
+  it("Can only recover any amount of a random token", async function () {
+    const randomToken = await (await getContractFactory("TestToken", owner)).deploy("RANDO", "RANDO");
+    const amount = toWei(420);
+    await randomToken.mint(distributor.address, amount);
+    await distributor.recoverErc20(randomToken.address);
+    expect(await randomToken.balanceOf(distributor.address)).to.equal(toWei(0));
+    await expect(distributor.recoverErc20(randomToken.address)).to.be.revertedWith("Can't recover 0 tokens");
   });
   it("Can not recover reward token", async function () {
     await enableTokenForStaking(distributor, lpToken1, acrossToken);
-    await expect(distributor.recoverErc20(acrossToken.address, toWei(420))).to.be.revertedWith(
-      "Can't recover reward token"
-    );
+    await expect(distributor.recoverErc20(acrossToken.address)).to.be.revertedWith("Can't recover reward token");
   });
 
   it("Cannot set staking token to reward token", async function () {
