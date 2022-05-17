@@ -29,7 +29,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     struct UserDeposit {
         uint256 cumulativeBalance;
         uint256 averageDepositTime;
-        uint256 rewardsPaidPerToken;
+        uint256 rewardsAccumulatedPerToken;
         uint256 rewardsOutstanding;
     }
 
@@ -64,7 +64,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      *               EVENTS               *
      **************************************/
 
-    event TokenEnabledForStaking(
+    event TokenConfiguredForStaking(
         address token,
         bool enabled,
         uint256 baseEmissionRate,
@@ -75,7 +75,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     event RecoverErc20(address token, address to, uint256 amount);
     event Stake(address token, address user, uint256 amount, uint256 averageDepositTime, uint256 cumulativeBalance);
     event Unstake(address token, address user, uint256 amount, uint256 remainingCumulativeBalance);
-    event GetReward(address token, address user, uint256 rewardsToSend);
+    event RewardsWithdrawn(address token, address user, uint256 rewardsToSend);
     event Exit(address token, address user);
 
     /**************************************
@@ -83,14 +83,14 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      **************************************/
 
     /**
-     * @notice Enable a token for staking.
+     * @notice Configure a token for staking.
      * @param stakedToken The address of the token that can be staked.
      * @param enabled Whether the token is enabled for staking.
      * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rate between all users.
      * @param maxMultiplier The maximum multiplier for staking which increases your rewards the longer you stake.
      * @param secondsToMaxMultiplier The number of seconds needed to stake to reach the maximum multiplier.
      */
-    function enableStaking(
+    function configureStakingToken(
         address stakedToken,
         bool enabled,
         uint256 baseEmissionRate,
@@ -112,7 +112,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         stakingToken.secondsToMaxMultiplier = secondsToMaxMultiplier;
         stakingToken.lastUpdateTime = getCurrentTime();
 
-        emit TokenEnabledForStaking(
+        emit TokenConfiguredForStaking(
             stakedToken,
             enabled,
             baseEmissionRate,
@@ -184,7 +184,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      * @dev Calling this method will reset the callers reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
-    function getReward(address stakedToken) public nonReentrant onlyInitialized(stakedToken) {
+    function withdrawReward(address stakedToken) public nonReentrant onlyInitialized(stakedToken) {
         _updateReward(stakedToken, msg.sender);
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
@@ -195,7 +195,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
             rewardToken.safeTransfer(msg.sender, rewardsToSend);
         }
 
-        emit GetReward(stakedToken, msg.sender, rewardsToSend);
+        emit RewardsWithdrawn(stakedToken, msg.sender, rewardsToSend);
     }
 
     /**
@@ -206,7 +206,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     function exit(address stakedToken) external onlyInitialized(stakedToken) {
         _updateReward(stakedToken, msg.sender);
         unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
-        getReward(stakedToken);
+        withdrawReward(stakedToken);
 
         emit Exit(stakedToken, msg.sender);
     }
@@ -228,7 +228,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      * @notice Returns the all information associated with a user's stake.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of user to query.
-     * @return UserDeposit Struct with: {cumulativeBalance,averageDepositTime,rewardsPaidPerToken,rewardsOutstanding}
+     * @return UserDeposit Struct with: {cumulativeBalance,averageDepositTime,rewardsAccumulatedPerToken,rewardsOutstanding}
      */
     function getUserStake(address stakedToken, address account) public view returns (UserDeposit memory) {
         return stakingTokens[stakedToken].stakingBalances[account];
@@ -261,7 +261,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     function getUserRewardMultiplier(address stakedToken, address account) public view returns (uint256) {
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[account];
         if (userDeposit.averageDepositTime == 0 || userDeposit.cumulativeBalance == 0) return 1e18;
-        uint256 fractionOfMaxMultiplier = ((getTimeFromLastDeposit(stakedToken, account)) * 1e18) /
+        uint256 fractionOfMaxMultiplier = ((getTimeSinceAverageDeposit(stakedToken, account)) * 1e18) /
             stakingTokens[stakedToken].secondsToMaxMultiplier;
 
         // At maximum, the multiplier should be equal to the maxMultiplier.
@@ -282,7 +282,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         uint256 userRewardMultiplier = getUserRewardMultiplier(stakedToken, account);
 
         uint256 newUserRewards = (userDeposit.cumulativeBalance *
-            (baseRewardPerToken(stakedToken) - userDeposit.rewardsPaidPerToken) *
+            (baseRewardPerToken(stakedToken) - userDeposit.rewardsAccumulatedPerToken) *
             userRewardMultiplier) / (1e18 * 1e18);
 
         return newUserRewards + userDeposit.rewardsOutstanding;
@@ -294,7 +294,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      * @param account The address of the user to query.
      *@return uint256 Time, in seconds, between the users average deposit time and the current time.
      */
-    function getTimeFromLastDeposit(address stakedToken, address account) public view returns (uint256) {
+    function getTimeSinceAverageDeposit(address stakedToken, address account) public view returns (uint256) {
         return getCurrentTime() - stakingTokens[stakedToken].stakingBalances[account].averageDepositTime;
     }
 
@@ -313,7 +313,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[account];
         if (amount == 0) return userDeposit.averageDepositTime;
         uint256 amountWeightedTime = (((amount * 1e18) / (userDeposit.cumulativeBalance + amount)) *
-            (getTimeFromLastDeposit(stakedToken, account))) / 1e18;
+            (getTimeSinceAverageDeposit(stakedToken, account))) / 1e18;
         return userDeposit.averageDepositTime + amountWeightedTime;
     }
 
@@ -329,7 +329,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         if (account != address(0)) {
             UserDeposit storage userDeposit = stakingToken.stakingBalances[account];
             userDeposit.rewardsOutstanding = getOutstandingRewards(stakedToken, account);
-            userDeposit.rewardsPaidPerToken = stakingToken.rewardPerTokenStored;
+            userDeposit.rewardsAccumulatedPerToken = stakingToken.rewardPerTokenStored;
         }
     }
 }
