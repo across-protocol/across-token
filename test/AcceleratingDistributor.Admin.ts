@@ -2,7 +2,7 @@ import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./util
 import { acceleratingDistributorFixture } from "./AcceleratingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
-let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract, lpToken2: Contract;
+let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract;
 let owner: SignerWithAddress, rando: SignerWithAddress;
 
 describe("AcceleratingDistributor: Admin Functions", async function () {
@@ -43,6 +43,20 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     await expect(
       distributor.enableStaking(acrossToken.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier)
     ).to.be.revertedWith("Staked token is reward token");
+  });
+  it("Cannot set bad staking configs", async function () {
+    await expect(
+      distributor.enableStaking(lpToken1.address, true, baseEmissionRate, toWei(0.5), secondsToMaxMultiplier)
+    ).to.be.revertedWith("maxMultiplier be larger than 1");
+    await expect(
+      distributor.enableStaking(lpToken1.address, true, baseEmissionRate, toWei(10000000000), secondsToMaxMultiplier)
+    ).to.be.revertedWith("maxMultiplier can not be set too large");
+    await expect(
+      distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, 0)
+    ).to.be.revertedWith("secondsToMaxMultiplier must be greater than 0");
+    await expect(
+      distributor.enableStaking(lpToken1.address, true, toWei(10000000000), maxMultiplier, secondsToMaxMultiplier)
+    ).to.be.revertedWith("baseEmissionRate can not be set too large");
   });
 
   it("Non owner cant execute admin functions", async function () {
