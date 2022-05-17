@@ -130,6 +130,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      */
     function recoverErc20(address tokenAddress, uint256 amount) external {
         require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
+        require(tokenAddress != address(rewardToken), "Can't recover reward token");
         IERC20(tokenAddress).safeTransfer(owner(), amount);
 
         emit RecoverErc20(tokenAddress, owner(), amount);
