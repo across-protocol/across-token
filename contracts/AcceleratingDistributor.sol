@@ -13,10 +13,9 @@ import "hardhat/console.sol";
 
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
- * Stakers start by earning their pro-rata share of a baseEmissionRate per second which increases based on how long
- * they have staked in the contract, up to a maximum of maxEmissionRate. Multiple LP tokens can be staked in this
- * contract enabling depositors to batch stake and claim via multicall.
- *
+ * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
+ * they have staked in the contract, up to a maximum of max emission rate of baseEmissionRate * maxMultiplier.
+ * Multiple LP tokens can be staked in this contract enabling depositors to batch stake and claim via multicall.
  */
 
 contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multicall {
@@ -279,6 +278,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
     /**
      * @notice Returns the base rewards per staked token for a given staking token. This factors in the last time
      * any internal logic was called on this contract to correctly attribute retroactive cumulative rewards.
+     * @dev the value returned is represented by a uint256 with fixed precision of 18 decimals.
      * @param stakedToken The address of the staked token to query.
      * @return uint256 Total base reward per token that will be applied, pro-rata, to stakers.
      */
@@ -296,6 +296,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
      * @notice Returns the multiplier applied to the base reward per staked token for a given staking token and account.
      * The longer a user stakes the higher their multiplier up to maxMultiplier for that given staking token.
      * any internal logic was called on this contract to correctly attribute retroactive cumulative rewards.
+     * @dev the value returned is represented by a uint256 with fixed precision of 18 decimals.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
      * @return uint256 User multiplier, applied to the baseRewardPerToken, when claiming rewards.
