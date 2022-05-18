@@ -1,8 +1,8 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./utils";
-import { acceleratingDistributorFixture } from "./AcceleratingDistributor.Fixture";
+import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
-let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract, lpToken2: Contract;
+let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract;
 let owner: SignerWithAddress, rando: SignerWithAddress;
 
 describe("AcceleratingDistributor: Admin Functions", async function () {
@@ -49,7 +49,6 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
   });
 
   it("Can not recover staking tokens", async function () {
-    // Should not be able to recover staking tokens.
     await distributor.configureStakingToken(
       lpToken1.address,
       true,
@@ -60,6 +59,12 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     await lpToken1.mint(distributor.address, toWei(420));
     await expect(distributor.recoverErc20(lpToken1.address, toWei(420))).to.be.revertedWith(
       "Can't recover staking token"
+    );
+  });
+  it("Can not recover reward token", async function () {
+    await enableTokenForStaking(distributor, lpToken1, acrossToken);
+    await expect(distributor.recoverErc20(acrossToken.address, toWei(420))).to.be.revertedWith(
+      "Can't recover reward token"
     );
   });
 
