@@ -230,7 +230,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
      * @param account The address of user to query.
      * @return UserDeposit Struct with: {cumulativeBalance,averageDepositTime,rewardsPaidPerToken,rewardsOutstanding}
      */
-    function getUserStake(address stakedToken, address account) public view returns (UserDeposit memory) {
+    function getUserStake(address stakedToken, address account) external view returns (UserDeposit memory) {
         return stakingTokens[stakedToken].stakingBalances[account];
     }
 
