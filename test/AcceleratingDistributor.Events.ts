@@ -81,7 +81,7 @@ describe("AcceleratingDistributor: Events", async function () {
     // Reward paid per token should be 200 * 0.01 or 0.2.
     await advanceTime(timer, 200);
     const currentTime = await distributor.getCurrentTime();
-    await expect(distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(distributor.connect(depositor1).withdrawReward(lpToken1.address))
       .to.emit(distributor, "RewardsWithdrawn")
       .withArgs(lpToken1.address, depositor1.address, toWei(3.6), currentTime, toWei(0.2), 0, toWei(0.2));
   });
