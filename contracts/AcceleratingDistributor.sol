@@ -64,18 +64,39 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
      **************************************/
 
     event TokenEnabledForStaking(
-        address token,
+        address indexed token,
         bool enabled,
         uint256 baseEmissionRate,
         uint256 maxMultiplier,
         uint256 secondsToMaxMultiplier,
         uint256 lastUpdateTime
     );
-    event RecoverErc20(address token, address to, uint256 amount);
-    event Stake(address token, address user, uint256 amount, uint256 averageDepositTime, uint256 cumulativeBalance);
-    event Unstake(address token, address user, uint256 amount, uint256 remainingCumulativeBalance);
-    event GetReward(address token, address user, uint256 rewardsToSend);
-    event Exit(address token, address user);
+    event RecoverErc20(address indexed token, address indexed to, uint256 amount, address indexed caller);
+    event Stake(
+        address indexed token,
+        address indexed user,
+        uint256 amount,
+        uint256 averageDepositTime,
+        uint256 cumulativeBalance,
+        uint256 tokenCumulativeStaked
+    );
+    event Unstake(
+        address indexed token,
+        address indexed user,
+        uint256 amount,
+        uint256 remainingCumulativeBalance,
+        uint256 tokenCumulativeStaked
+    );
+    event GetReward(
+        address indexed token,
+        address indexed user,
+        uint256 rewardsToSend,
+        uint256 tokenLastUpdateTime,
+        uint256 tokenRewardPerTokenStored,
+        uint256 userRewardsOutstanding,
+        uint256 userRewardsPaidPerToken
+    );
+    event Exit(address indexed token, address indexed user, uint256 tokenCumulativeStaked);
 
     /**************************************
      *          ADMIN FUNCTIONS           *
@@ -97,7 +118,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
         uint256 secondsToMaxMultiplier
     ) public onlyOwner {
         // Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
-        // payouts could eat into user balances.
+        // payouts could eat into user balances.e
         require(stakedToken != address(rewardToken), "Staked token is reward token");
 
         StakingToken storage stakingToken = stakingTokens[stakedToken];
@@ -132,7 +153,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
         require(tokenAddress != address(rewardToken), "Can't recover reward token");
         IERC20(tokenAddress).safeTransfer(owner(), amount);
 
-        emit RecoverErc20(tokenAddress, owner(), amount);
+        emit RecoverErc20(tokenAddress, owner(), amount, msg.sender);
     }
 
     /**************************************
@@ -158,7 +179,14 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
 
         IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
 
-        emit Stake(stakedToken, msg.sender, amount, averageDepositTime, userDeposit.cumulativeBalance);
+        emit Stake(
+            stakedToken,
+            msg.sender,
+            amount,
+            averageDepositTime,
+            userDeposit.cumulativeBalance,
+            stakingTokens[stakedToken].cumulativeStaked
+        );
     }
 
     /**
@@ -176,7 +204,13 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
 
         IERC20(stakedToken).safeTransfer(msg.sender, amount);
 
-        emit Unstake(stakedToken, msg.sender, amount, userDeposit.cumulativeBalance);
+        emit Unstake(
+            stakedToken,
+            msg.sender,
+            amount,
+            userDeposit.cumulativeBalance,
+            stakingTokens[stakedToken].cumulativeStaked
+        );
     }
 
     /**
@@ -195,7 +229,15 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
             rewardToken.safeTransfer(msg.sender, rewardsToSend);
         }
 
-        emit GetReward(stakedToken, msg.sender, rewardsToSend);
+        emit GetReward(
+            stakedToken,
+            msg.sender,
+            rewardsToSend,
+            stakingTokens[stakedToken].lastUpdateTime,
+            stakingTokens[stakedToken].rewardPerTokenStored,
+            userDeposit.rewardsOutstanding,
+            userDeposit.rewardsPaidPerToken
+        );
     }
 
     /**
@@ -208,7 +250,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
         unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
         getReward(stakedToken);
 
-        emit Exit(stakedToken, msg.sender);
+        emit Exit(stakedToken, msg.sender, stakingTokens[stakedToken].cumulativeStaked);
     }
 
     /**************************************
