@@ -6,7 +6,6 @@ import "./test/Testable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
@@ -14,17 +13,17 @@ import "hardhat/console.sol";
 
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
- * Stakers start by earning their pro-rate share of a baseEmissionRate per second which increases based on how long
+ * Stakers start by earning their pro-rata share of a baseEmissionRate per second which increases based on how long
  * they have staked in the contract, up to a maximum of maxEmissionRate. Multiple LP tokens can be staked in this
  * contract enabling depositors to batch stake and claim via multicall. Note that this contract is only compatible with
  * standard ERC20 tokens, and not tokens that charge fees on transfers or dynamically change ballance. It's up to the
  * contract owner to ensure they only add supported tokens.
  */
 
-contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable, Multicall {
+contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
-    IERC20 public rewardToken;
+    IERC20 public immutable rewardToken;
 
     // Each User deposit is tracked with the information below.
     struct UserDeposit {
@@ -88,7 +87,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
      * @dev The owner should ensure that the token enabled is a standard ERC20 token to ensure correct functionality.
      * @param stakedToken The address of the token that can be staked.
      * @param enabled Whether the token is enabled for staking.
-     * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rate between all users.
+     * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rata between all users.
      * @param maxMultiplier The maximum multiplier for staking which increases your rewards the longer you stake.
      * @param secondsToMaxMultiplier The number of seconds needed to stake to reach the maximum multiplier.
      */
@@ -125,13 +124,14 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     }
 
     /**
-     * @notice Recover an ERC20 token either dropped on the contract or excess after the end of the staking program ends.
+     * @notice Recover an ERC20 token either dropped on the contract or excess after the staking program ends.
      * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
      * @param tokenAddress The address of the token to recover.
      * @param amount The amount of the token to recover.
      */
     function recoverErc20(address tokenAddress, uint256 amount) external nonReentrant {
         require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
+        require(tokenAddress != address(rewardToken), "Can't recover reward token");
         IERC20(tokenAddress).safeTransfer(owner(), amount);
 
         emit RecoverErc20(tokenAddress, owner(), amount);
@@ -176,14 +176,14 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         userDeposit.cumulativeBalance -= amount;
         stakingTokens[stakedToken].cumulativeStaked -= amount;
 
-        IERC20(stakedToken).transfer(msg.sender, amount);
+        IERC20(stakedToken).safeTransfer(msg.sender, amount);
 
         emit Unstake(stakedToken, msg.sender, amount, userDeposit.cumulativeBalance);
     }
 
     /**
      * @notice Get entitled rewards for the staker.
-     * @dev Calling this method will reset the callers reward multiplier.
+     * @dev Calling this method will reset the caller's reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
     function getReward(address stakedToken) public nonReentrant onlyInitialized(stakedToken) {
@@ -201,8 +201,8 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     }
 
     /**
-     * @notice Exits a staking position by unstaking and getting rewards. This totally exists the staking position.
-     * @dev Calling this method will reset the callers reward multiplier.
+     * @notice Exits a staking position by unstaking and getting rewards. This totally exits the staking position.
+     * @dev Calling this method will reset the caller's reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
     function exit(address stakedToken) external onlyInitialized(stakedToken) {
@@ -227,7 +227,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
     }
 
     /**
-     * @notice Returns the all information associated with a user's stake.
+     * @notice Returns all the information associated with a user's stake.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of user to query.
      * @return UserDeposit Struct with: {cumulativeBalance,averageDepositTime,rewardsPaidPerToken,rewardsOutstanding}
