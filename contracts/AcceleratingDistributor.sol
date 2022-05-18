@@ -175,7 +175,7 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Pausable, Ownable
         userDeposit.cumulativeBalance -= amount;
         stakingTokens[stakedToken].cumulativeStaked -= amount;
 
-        IERC20(stakedToken).transfer(msg.sender, amount);
+        IERC20(stakedToken).safeTransfer(msg.sender, amount);
 
         emit Unstake(stakedToken, msg.sender, amount, userDeposit.cumulativeBalance);
     }
