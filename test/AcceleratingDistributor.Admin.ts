@@ -46,7 +46,7 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
   });
   it("Cannot set bad staking configs", async function () {
     await expect(
-      distributor.enableStaking(lpToken1.address, true, baseEmissionRate, toWei(10000000000), secondsToMaxMultiplier)
+      distributor.enableStaking(lpToken1.address, true, baseEmissionRate, toWei(toWei(1)), secondsToMaxMultiplier)
     ).to.be.revertedWith("maxMultiplier can not be set too large");
     await expect(
       distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, 0)
