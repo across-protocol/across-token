@@ -51,7 +51,7 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     // Rewards entitled to the user should now be duration * baseEmissionRate * multiplier as 1000 * 0.01 * 5 = 50
     expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(50));
   });
-  it("Multiple depositors, pro-rate distribution: same stake time and claim time", async function () {
+  it("Multiple depositors, pro-rata distribution: same stake time and claim time", async function () {
     // Create a simple situation wherein both depositors deposit at the same time but have varying amounts.
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount); // stake 10.
     await distributor.connect(depositor2).stake(lpToken1.address, stakeAmount.mul(3)); // stake 30.
@@ -61,15 +61,15 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     // get 20 / 40 * 3.6 = 2.7. Equally, both should have the same multiplier of 1 + 200 / 1000 *(5 - 1) = 1.8
     await advanceTime(timer, 200);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor1).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 0.9 to the depositor1.
       .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-0.9), toWei(0.9)]);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor2.address)).to.equal(toWei(1.8));
-    await expect(() => distributor.connect(depositor2).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor2).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 2.7 to the depositor2.
       .to.changeTokenBalances(acrossToken, [distributor, depositor2], [toWei(-2.7), toWei(2.7)]);
   });
-  it("Multiple depositors, pro-rate distribution: same stake time and separate claim time", async function () {
+  it("Multiple depositors, pro-rata distribution: same stake time and separate claim time", async function () {
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount); // stake 10.
     await distributor.connect(depositor2).stake(lpToken1.address, stakeAmount.mul(3)); // stake 30.
     // Try claiming from one user halfway through some staking period and validating that multipliers are treated independently.
@@ -79,7 +79,7 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor2.address)).to.equal(toWei(1.8));
 
     // Claim on just depositor2.
-    await distributor.connect(depositor2).getReward(lpToken1.address);
+    await distributor.connect(depositor2).withdrawReward(lpToken1.address);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor2.address)).to.equal(toWei(1));
 
@@ -91,18 +91,18 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
 
     // Depositor1 should now be entitled to 1/4 of the rewards accumulated over the period, multiplied by their multiplier.
     // This should be 500 * 0.01 * 3 * 1/4 = 3.75.
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor1).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 3.75 to the depositor1.
       .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-3.75), toWei(3.75)]);
     // Depositor2 should be entitled to 3/4th of of the rewards, accumulated from the previous time they claimed, multiple
     // by their reduced multiplier. This should be 300 * 0.01 * 2.2 * 3/4 = 4.95
-    await expect(() => distributor.connect(depositor2).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor2).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 4.49 to the depositor2.
       .to.changeTokenBalances(acrossToken, [distributor, depositor2], [toWei(-4.95), toWei(4.95)]);
   });
-  it("Multiple depositors, pro-rate distribution: separate stake time and separate claim time", async function () {
+  it("Multiple depositors, pro-rata distribution: separate stake time and separate claim time", async function () {
     // Stake with one user, advance time, then stake with another use. We should be able to track the evaluation of the
-    // pro-rate rewards, as expected.
+    // pro-rata rewards, as expected.
 
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount); // stake 10.
     await advanceTime(timer, 200);
@@ -117,10 +117,10 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     // Advance time another 200 seconds.
     await advanceTime(timer, 200);
 
-    // Now, the depositor1 should be entitled to their first amount + the pro-rate rewards for the second period as
+    // Now, the depositor1 should be entitled to their first amount + the pro-rata rewards for the second period as
     // 400 * 0.01 * (1 + 400 / 1000 * (5 - 1)) * (1 / 4 + 1) / 2 = 6.5. This equation can be though as attributing the
     // full period plus the multiplier growing over the full period * (1 / 4 + 1) / 2 which represents that for the first
-    // 200 seconds the pro-rate decision is 1 (i.e (1)/2) and for the second 200 seconds it is 1/4 (i.e (1/4)/2).
+    // 200 seconds the pro-rata decision is 1 (i.e (1)/2) and for the second 200 seconds it is 1/4 (i.e (1/4)/2).
     expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(6.5));
 
     // The depositor2 balance should simply be their prop-rate share of the distribution drawn over the 200 seconds as

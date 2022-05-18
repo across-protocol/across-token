@@ -20,6 +20,12 @@ export const acceleratingDistributorFixture = hre.deployments.createFixture(asyn
 
 export async function enableTokenForStaking(distributor: Contract, lpToken: Contract, acrossToken: Contract) {
   // Enable the LpToken for staking and deposit some across tokens into the distributor.
-  await distributor.enableStaking(lpToken.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+  await distributor.configureStakingToken(
+    lpToken.address,
+    true,
+    baseEmissionRate,
+    maxMultiplier,
+    secondsToMaxMultiplier
+  );
   await acrossToken.mint(distributor.address, seedDistributorAmount);
 }
