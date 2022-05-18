@@ -20,7 +20,7 @@ describe("AcceleratingDistributor: Time Evolution", async function () {
     // see the users averageDeposit time be time1 + 210 seconds (half way between the two deposits).
     await advanceTime(timer, 420);
     const time2 = await distributor.getCurrentTime();
-    expect(await distributor.getTimeFromLastDeposit(lpToken1.address, depositor1.address)).to.equal(420);
+    expect(await distributor.getTimeSinceAverageDeposit(lpToken1.address, depositor1.address)).to.equal(420);
     await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
     const averageDepositTime1 = time1.add(210);
     expect(time2).to.equal(time1.add(420));
