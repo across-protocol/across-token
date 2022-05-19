@@ -13,7 +13,13 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
   it("Enable token for staking", async function () {
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
 
-    await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.true;
     expect((await distributor.stakingTokens(lpToken1.address)).baseEmissionRate).to.equal(baseEmissionRate);
     expect((await distributor.stakingTokens(lpToken1.address)).maxMultiplier).to.equal(maxMultiplier);
@@ -22,16 +28,34 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
 
     // Update settings.
     const newMultiplier = maxMultiplier.add(toWei(1));
-    await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, newMultiplier, secondsToMaxMultiplier);
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      newMultiplier,
+      secondsToMaxMultiplier
+    );
     expect((await distributor.stakingTokens(lpToken1.address)).maxMultiplier).to.equal(newMultiplier);
 
     //Disable token for staking.
-    await distributor.enableStaking(lpToken1.address, false, baseEmissionRate, newMultiplier, secondsToMaxMultiplier);
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      false,
+      baseEmissionRate,
+      newMultiplier,
+      secondsToMaxMultiplier
+    );
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
   });
 
   it("Can not recover staking tokens", async function () {
-    await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
     await lpToken1.mint(distributor.address, toWei(420));
     await expect(distributor.recoverErc20(lpToken1.address, toWei(420))).to.be.revertedWith(
       "Can't recover staking token"
@@ -46,12 +70,29 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
 
   it("Cannot set staking token to reward token", async function () {
     await expect(
-      distributor.enableStaking(acrossToken.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier)
+      distributor.configureStakingToken(
+        acrossToken.address,
+        true,
+        baseEmissionRate,
+        maxMultiplier,
+        secondsToMaxMultiplier
+      )
     ).to.be.revertedWith("Staked token is reward token");
+  });
+  it("Cannot set bad staking configs", async function () {
+    await expect(
+      distributor.enableStaking(lpToken1.address, true, baseEmissionRate, toWei(toWei(1)), secondsToMaxMultiplier)
+    ).to.be.revertedWith("maxMultiplier can not be set too large");
+    await expect(
+      distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, 0)
+    ).to.be.revertedWith("secondsToMaxMultiplier must be greater than 0");
+    await expect(
+      distributor.enableStaking(lpToken1.address, true, toWei(10000000000), maxMultiplier, secondsToMaxMultiplier)
+    ).to.be.revertedWith("baseEmissionRate can not be set too large");
   });
 
   it("Non owner cant execute admin functions", async function () {
-    await expect(distributor.connect(rando).enableStaking(lpToken1.address, true, 4, 2, 0)).to.be.revertedWith(
+    await expect(distributor.connect(rando).configureStakingToken(lpToken1.address, true, 4, 2, 0)).to.be.revertedWith(
       "Ownable: caller is not the owner"
     );
   });
@@ -61,23 +102,35 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     await expect(distributor.connect(owner).unstake(lpToken1.address, 0)).to.be.revertedWith(
       "stakedToken not initialized"
     );
-    await expect(distributor.connect(owner).getReward(lpToken1.address)).to.be.revertedWith(
+    await expect(distributor.connect(owner).withdrawReward(lpToken1.address)).to.be.revertedWith(
       "stakedToken not initialized"
     );
     await expect(distributor.connect(owner).exit(lpToken1.address)).to.be.revertedWith("stakedToken not initialized");
 
-    await distributor.enableStaking(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
 
     await expect(distributor.connect(owner).stake(lpToken1.address, 0)).to.not.be.reverted;
     await expect(distributor.connect(owner).unstake(lpToken1.address, 0)).to.not.be.reverted;
-    await expect(distributor.connect(owner).getReward(lpToken1.address)).to.not.be.reverted;
+    await expect(distributor.connect(owner).withdrawReward(lpToken1.address)).to.not.be.reverted;
     await expect(distributor.connect(owner).exit(lpToken1.address)).to.not.be.reverted;
 
-    await distributor.enableStaking(lpToken1.address, false, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      false,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
 
     await expect(distributor.connect(owner).stake(lpToken1.address, 0)).to.be.revertedWith("stakedToken not enabled");
     await expect(distributor.connect(owner).unstake(lpToken1.address, 0)).to.not.be.reverted;
-    await expect(distributor.connect(owner).getReward(lpToken1.address)).to.not.be.reverted;
+    await expect(distributor.connect(owner).withdrawReward(lpToken1.address)).to.not.be.reverted;
     await expect(distributor.connect(owner).exit(lpToken1.address)).to.not.be.reverted;
   });
 });

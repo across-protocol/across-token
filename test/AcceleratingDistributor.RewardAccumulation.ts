@@ -61,11 +61,11 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     // get 20 / 40 * 3.6 = 2.7. Equally, both should have the same multiplier of 1 + 200 / 1000 *(5 - 1) = 1.8
     await advanceTime(timer, 200);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor1).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 0.9 to the depositor1.
       .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-0.9), toWei(0.9)]);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor2.address)).to.equal(toWei(1.8));
-    await expect(() => distributor.connect(depositor2).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor2).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 2.7 to the depositor2.
       .to.changeTokenBalances(acrossToken, [distributor, depositor2], [toWei(-2.7), toWei(2.7)]);
   });
@@ -79,7 +79,7 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor2.address)).to.equal(toWei(1.8));
 
     // Claim on just depositor2.
-    await distributor.connect(depositor2).getReward(lpToken1.address);
+    await distributor.connect(depositor2).withdrawReward(lpToken1.address);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor2.address)).to.equal(toWei(1));
 
@@ -91,12 +91,12 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
 
     // Depositor1 should now be entitled to 1/4 of the rewards accumulated over the period, multiplied by their multiplier.
     // This should be 500 * 0.01 * 3 * 1/4 = 3.75.
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor1).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 3.75 to the depositor1.
       .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-3.75), toWei(3.75)]);
     // Depositor2 should be entitled to 3/4th of of the rewards, accumulated from the previous time they claimed, multiple
     // by their reduced multiplier. This should be 300 * 0.01 * 2.2 * 3/4 = 4.95
-    await expect(() => distributor.connect(depositor2).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor2).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 4.49 to the depositor2.
       .to.changeTokenBalances(acrossToken, [distributor, depositor2], [toWei(-4.95), toWei(4.95)]);
   });

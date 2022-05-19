@@ -19,7 +19,7 @@ describe("AcceleratingDistributor: Reward Token Flow", async function () {
     // Advance time 200 seconds. Expected rewards are 200 * 0.01 * (1 + 200 / 1000 * (5 - 1)) = 3.6.
     await advanceTime(timer, 200);
 
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor1).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 3.6 to the depositor.
       .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-3.6), toWei(3.6)]);
 
@@ -28,7 +28,7 @@ describe("AcceleratingDistributor: Reward Token Flow", async function () {
 
     // Advance time 500 seconds. Expected rewards are 500 * 0.01 * (1 + 500 / 1000 * (5 - 1)) = 15.
     await advanceTime(timer, 500);
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor1).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 15 to the depositor.
       .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(-15), toWei(15)]);
   });
@@ -69,7 +69,7 @@ describe("AcceleratingDistributor: Reward Token Flow", async function () {
     await expect(() => distributor.connect(depositor1).unstake(lpToken1.address, stakeAmount))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 0.9 to the depositor1.
       .to.changeTokenBalances(lpToken1, [distributor, depositor1], [stakeAmount.mul(-1), stakeAmount]);
-    await expect(() => distributor.connect(depositor1).getReward(lpToken1.address))
+    await expect(() => distributor.connect(depositor1).withdrawReward(lpToken1.address))
       // Get the rewards. Check the cash flows are as expected. The distributor should send 10.2 to the depositor1.
       .to.changeTokenBalances(acrossToken, [distributor, depositor1], [toWei(10.2).mul(-1), toWei(10.2)]);
     expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(0));
