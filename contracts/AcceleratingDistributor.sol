@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.0;
 
-import "./test/Testable.sol";
-
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
-
-import "hardhat/console.sol";
 
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
@@ -18,7 +14,7 @@ import "hardhat/console.sol";
  * Multiple LP tokens can be staked in this contract enabling depositors to batch stake and claim via multicall.
  */
 
-contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multicall {
+contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable rewardToken;
@@ -54,8 +50,12 @@ contract AcceleratingDistributor is Testable, ReentrancyGuard, Ownable, Multical
         _;
     }
 
-    constructor(address _rewardToken, address _timer) Testable(_timer) {
+    constructor(address _rewardToken) {
         rewardToken = IERC20(_rewardToken);
+    }
+
+    function getCurrentTime() public view virtual returns (uint256) {
+        return block.timestamp; // solhint-disable-line not-rely-on-time
     }
 
     /**************************************
