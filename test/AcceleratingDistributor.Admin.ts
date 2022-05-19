@@ -48,7 +48,7 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     expect((await distributor.stakingTokens(lpToken1.address)).enabled).to.be.false;
   });
 
-  it("Can only recover excess staked non-staked tokens", async function () {
+  it("Can only skim excess staked non-staked tokens", async function () {
     await distributor.configureStakingToken(
       lpToken1.address,
       true,
@@ -56,39 +56,50 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
       maxMultiplier,
       secondsToMaxMultiplier
     );
-    // Drop tokens directly onto the contract. Should be able to recover all of them, even though tis is the staked token.
+    // Drop tokens directly onto the contract. Should be able to skim all of them, even though tis is the staked token.
     await lpToken1.mint(distributor.address, toWei(420));
-    await expect(() => distributor.recoverErc20(lpToken1.address)).to.changeTokenBalances(
+    await expect(() => distributor.skim(lpToken1.address)).to.changeTokenBalances(
       lpToken1,
       [distributor, owner],
       [toWei(420).mul(-1), toWei(420)]
     );
 
-    // Stake tokens. Should not be able to recover as no excess.
+    // Stake tokens. Should not be able to skim as no excess.
     await lpToken1.mint(rando.address, toWei(69));
     await lpToken1.connect(rando).approve(distributor.address, toWei(69));
     await distributor.connect(rando).stake(lpToken1.address, toWei(69));
-    await expect(distributor.recoverErc20(lpToken1.address)).to.be.revertedWith("Can't recover 0 tokens");
+    await expect(distributor.skim(lpToken1.address)).to.be.revertedWith("Can't skim 0 tokens");
 
-    // Mint additional tokens to the contract to simulate someone dropping them accidentally. This should be recoverable.
+    // Mint additional tokens to the contract to simulate someone dropping them accidentally. This should be skimable.
     await lpToken1.mint(distributor.address, toWei(696));
-    await expect(() => distributor.recoverErc20(lpToken1.address)).to.changeTokenBalances(
+    await expect(() => distributor.skim(lpToken1.address)).to.changeTokenBalances(
       lpToken1,
       [distributor, owner],
       [toWei(696).mul(-1), toWei(696)]
     );
 
-    // The contract should be left with the original stake amount in it as this was not recoverable.
+    // The contract should be left with the original stake amount in it as this was not skimable.
     expect(await lpToken1.balanceOf(distributor.address)).to.equal(toWei(69));
-    await expect(distributor.recoverErc20(lpToken1.address)).to.be.revertedWith("Can't recover 0 tokens");
+    await expect(distributor.skim(lpToken1.address)).to.be.revertedWith("Can't skim 0 tokens");
   });
-  it("Can only recover any amount of a random token", async function () {
+  it("Can only skim any amount of a random token", async function () {
     const randomToken = await (await getContractFactory("TestToken", owner)).deploy("RANDO", "RANDO");
     const amount = toWei(420);
     await randomToken.mint(distributor.address, amount);
-    await distributor.recoverErc20(randomToken.address);
+    await distributor.skim(randomToken.address);
     expect(await randomToken.balanceOf(distributor.address)).to.equal(toWei(0));
-    await expect(distributor.recoverErc20(randomToken.address)).to.be.revertedWith("Can't recover 0 tokens");
+    await expect(distributor.skim(randomToken.address)).to.be.revertedWith("Can't skim 0 tokens");
+  });
+
+  it("Owner can at any time recover reward token", async function () {
+    await acrossToken.mint(distributor.address, toWei(420));
+
+    // Owner can recover tokens at any point in time.
+    await expect(() => distributor.recoverReward(toWei(69))).to.changeTokenBalances(
+      acrossToken,
+      [distributor, owner],
+      [toWei(69).mul(-1), toWei(69)]
+    );
   });
 
   it("Cannot set staking token to reward token", async function () {
