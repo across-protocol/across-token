@@ -70,8 +70,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 secondsToMaxMultiplier,
         uint256 lastUpdateTime
     );
-    event SkimErc20(address indexed token, address indexed to, uint256 amount, address indexed caller);
-    event RecoverErc20(uint256 amount);
+    event RecoverToken(address indexed token, uint256 amount);
     event Stake(
         address indexed token,
         address indexed user,
@@ -148,35 +147,21 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     }
 
     /**
-     * @notice Recovers reward tokens. The Owner of the contract can choose to pull out excess reward tokens out of this
-     * contract at any point in time.
-     * @dev Only callable by the owner of the contract.
-     * @param recoverAmount The amount of reward token to send back.
+     * @notice Enables the owner to recover tokens dropped onto the contract. This could be used to remove unclaimed
+     * staking rewards or recover excess LP tokens that were inadvertently dropped onto the contract. Importantly, the
+     * contract will only let the owner recover staked excess tokens above what the contract thinks it should have. i.e
+     * the owner cant use this method to steal staked tokens, only recover excess ones mistakenly sent to the contract.
+     * @param token The address of the token to skim.
      */
-    function recoverReward(uint256 recoverAmount) external onlyOwner {
-        rewardToken.safeTransfer(owner(), recoverAmount);
-        emit RecoverErc20(recoverAmount);
-    }
-
-    /**
-     * @notice Skim an ERC20 token accidentally dropped onto the contract. This lets users recover lost funds. Only non
-     * reward tokens can be skimmed. To recover the reward token use `recoverRewardToken` method.
-     * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor. The
-     * owner of this contract unilaterally controls who receives these funds as the owner can transfer ownership.
-     * @param tokenAddress The address of the token to skim.
-     */
-    function skim(address tokenAddress) external nonReentrant {
-        require(tokenAddress != address(rewardToken), "Can't skim reward token");
-        // The amount to skim should be the full balance of the token owned by this contract.
-        uint256 amount = IERC20(tokenAddress).balanceOf(address(this));
+    function recoverToken(address token, uint256 amount) external onlyOwner {
         // If the token is an enabled staking token then we want to preform a skim action where we send back any extra
-        // tokens that are not accounted for in the cumulativeStaked variable. This lets us recover extra tokens sent
-        // to the contract that were not explicitly staked. This value will be the full balance of the token if it is
-        // not the a staking token. i.e a random ERC20 token balance is always fully skimable.
-        if (stakingTokens[tokenAddress].lastUpdateTime != 0) amount -= stakingTokens[tokenAddress].cumulativeStaked;
-        require(amount > 0, "Can't skim 0 tokens");
-        IERC20(tokenAddress).safeTransfer(owner(), amount);
-        emit SkimErc20(tokenAddress, owner(), amount, msg.sender);
+        // tokens that are not accounted for in the cumulativeStaked variable. This lets the owner recover extra tokens
+        // sent to the contract that were not explicitly staked. if the token is not enabled for staking then we simply
+        // send back the full amount of tokens specified by the caller.
+        if (stakingTokens[token].lastUpdateTime != 0) amount -= stakingTokens[token].cumulativeStaked;
+        require(amount > 0, "Can't recover 0 tokens");
+        IERC20(token).safeTransfer(owner(), amount);
+        emit RecoverToken(token, amount);
     }
 
     /**************************************
