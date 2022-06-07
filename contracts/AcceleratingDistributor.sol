@@ -12,8 +12,8 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
  * Stakers start by earning their pro-rata share of a baseEmissionRate per second which increases based on how long
  * they have staked in the contract, up to a max emission rate of baseEmissionRate * maxMultiplier. Multiple LP tokens
  * can be staked in this contract enabling depositors to batch stake and claim via multicall. Note that this contract is
- * only compatible with standard ERC20 tokens, and not tokens that charge fees on transfers or dynamically change
- * ballance. It's up to the contract owner to ensure they only add supported tokens.
+ * only compatible with standard ERC20 tokens, and not tokens that charge fees on transfers, dynamically change
+ * balance, or have double entry-points. It's up to the contract owner to ensure they only add supported tokens.
  */
 
 contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
@@ -118,11 +118,14 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 baseEmissionRate,
         uint256 maxMultiplier,
         uint256 secondsToMaxMultiplier
-    ) public onlyOwner {
+    ) external onlyOwner {
         // Validate input to ensure system stability and avoid unexpected behavior. Note we dont place a lower bound on
         // the baseEmissionRate. If this value is less than 1e18 then you will slowly loose your staking rewards over time.
         // Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
-        // payouts could eat into user balances.e
+        // payouts could eat into user balances. We choose not to constrain `maxMultiplier` to be > 1e18 so that
+        // admin can choose to allow decreasing emissions over time. This is not the intended use case, but we see no
+        // benefit to removing this additional flexibility. If set < 1e18, then user's rewards outstanding will
+        // decrease over time. Incentives for stakers would look different if `maxMultiplier` were set < 1e18
         require(stakedToken != address(rewardToken), "Staked token is reward token");
         require(maxMultiplier < 1e36, "maxMultiplier can not be set too large");
         require(secondsToMaxMultiplier > 0, "secondsToMaxMultiplier must be greater than 0");
@@ -149,20 +152,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         );
     }
 
-    /**
-     * @notice Recover an ERC20 token either dropped on the contract or excess after the staking program ends.
-     * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
-     * @param tokenAddress The address of the token to recover.
-     * @param amount The amount of the token to recover.
-     */
-    function recoverErc20(address tokenAddress, uint256 amount) external nonReentrant {
-        require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
-        require(tokenAddress != address(rewardToken), "Can't recover reward token");
-        IERC20(tokenAddress).safeTransfer(owner(), amount);
-
-        emit RecoverErc20(tokenAddress, owner(), amount, msg.sender);
-    }
-
     /**************************************
      *          STAKER FUNCTIONS          *
      **************************************/
@@ -173,7 +162,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param stakedToken The address of the token to stake.
      * @param amount The amount of the token to stake.
      */
-    function stake(address stakedToken, uint256 amount) public nonReentrant onlyEnabled(stakedToken) {
+    function stake(address stakedToken, uint256 amount) external nonReentrant onlyEnabled(stakedToken) {
         _updateReward(stakedToken, msg.sender);
 
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
@@ -261,6 +250,24 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     }
 
     /**************************************
+     *           PUBLIC FUNCTIONS         *
+     **************************************/
+
+    /**
+     * @notice Recover an ERC20 token either dropped on the contract or excess after the staking program ends.
+     * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
+     * @param tokenAddress The address of the token to recover.
+     * @param amount The amount of the token to recover.
+     */
+    function recoverErc20(address tokenAddress, uint256 amount) external nonReentrant {
+        require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
+        require(tokenAddress != address(rewardToken), "Can't recover reward token");
+        IERC20(tokenAddress).safeTransfer(owner(), amount);
+
+        emit RecoverErc20(tokenAddress, owner(), amount, msg.sender);
+    }
+
+    /**************************************
      *           VIEW FUNCTIONS           *
      **************************************/
 
@@ -269,7 +276,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param stakedToken The address of the staked token to query.
      * @return uint256 Total amount staked of the stakedToken.
      */
-    function getCumulativeStaked(address stakedToken) public view returns (uint256) {
+    function getCumulativeStaked(address stakedToken) external view returns (uint256) {
         return stakingTokens[stakedToken].cumulativeStaked;
     }
 
