@@ -27,7 +27,7 @@ describe("AcceleratingDistributor: Events", async function () {
     const randomToken = await (await getContractFactory("TestToken", owner)).deploy("RANDO", "RANDO");
     const amount = toWei(420);
     await randomToken.mint(distributor.address, amount);
-    await expect(distributor.recoverToken(randomToken.address, amount))
+    await expect(distributor.recoverToken(randomToken.address))
       .to.emit(distributor, "RecoverToken")
       .withArgs(randomToken.address, amount);
   });

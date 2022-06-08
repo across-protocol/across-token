@@ -58,7 +58,7 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     );
     // Drop tokens directly onto the contract. The owner should be able to fully recover these.
     await lpToken1.mint(distributor.address, toWei(420));
-    await expect(() => distributor.recoverToken(lpToken1.address, toWei(420))).to.changeTokenBalances(
+    await expect(() => distributor.recoverToken(lpToken1.address)).to.changeTokenBalances(
       lpToken1,
       [distributor, owner],
       [toWei(420).mul(-1), toWei(420)]
@@ -69,11 +69,11 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     await lpToken1.connect(rando).approve(distributor.address, toWei(69));
     await distributor.connect(rando).stake(lpToken1.address, toWei(69));
     console.log("a");
-    await expect(distributor.recoverToken(lpToken1.address, toWei(69))).to.be.revertedWith("Can't recover 0 tokens");
+    await expect(distributor.recoverToken(lpToken1.address)).to.be.revertedWith("Can't recover 0 tokens");
     console.log("b");
     // Mint additional tokens to the contract to simulate someone dropping them accidentally. This should be recoverable.
     await lpToken1.mint(distributor.address, toWei(696));
-    await expect(() => distributor.recoverToken(lpToken1.address, toWei(696).add(toWei(69)))).to.changeTokenBalances(
+    await expect(() => distributor.recoverToken(lpToken1.address)).to.changeTokenBalances(
       lpToken1,
       [distributor, owner],
       [toWei(696).mul(-1), toWei(696)]
@@ -81,28 +81,26 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
 
     // The contract should be left with the original stake amount in it as this was not recoverable.
     expect(await lpToken1.balanceOf(distributor.address)).to.equal(toWei(69));
-    await expect(distributor.recoverToken(lpToken1.address, toWei(69))).to.be.revertedWith("Can't recover 0 tokens");
+    await expect(distributor.recoverToken(lpToken1.address)).to.be.revertedWith("Can't recover 0 tokens");
     console.log("c");
   });
   it("Can skim any amount of a random token", async function () {
     const randomToken = await (await getContractFactory("TestToken", owner)).deploy("RANDO", "RANDO");
     const amount = toWei(420);
     await randomToken.mint(distributor.address, amount);
-    await distributor.recoverToken(randomToken.address, amount);
+    await distributor.recoverToken(randomToken.address);
     expect(await randomToken.balanceOf(distributor.address)).to.equal(toWei(0));
-    await expect(distributor.recoverToken(randomToken.address, amount)).to.be.revertedWith(
-      "ERC20: transfer amount exceeds balance"
-    );
+    await expect(distributor.recoverToken(randomToken.address)).to.be.revertedWith("Can't recover 0 tokens");
   });
 
   it("Owner can at any time recover reward token", async function () {
     await acrossToken.mint(distributor.address, toWei(420));
 
     // Owner can recover tokens at any point in time.
-    await expect(() => distributor.recoverToken(acrossToken.address, toWei(69))).to.changeTokenBalances(
+    await expect(() => distributor.recoverToken(acrossToken.address)).to.changeTokenBalances(
       acrossToken,
       [distributor, owner],
-      [toWei(69).mul(-1), toWei(69)]
+      [toWei(420).mul(-1), toWei(420)]
     );
   });
 
