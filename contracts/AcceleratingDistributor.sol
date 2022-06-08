@@ -72,7 +72,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 secondsToMaxMultiplier,
         uint256 lastUpdateTime
     );
-    event RecoverErc20(address indexed token, address indexed to, uint256 amount, address indexed caller);
+    event RecoverToken(address indexed token, uint256 amount);
     event Stake(
         address indexed token,
         address indexed user,
