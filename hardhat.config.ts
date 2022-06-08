@@ -27,18 +27,18 @@ const config: HardhatUserConfig = {
       saveDeployments: true,
       chainId: 1,
     },
-    kovan: {
-      url: getNodeUrl("kovan", true, 42),
+    goerli: {
+      url: getNodeUrl("goerli", true, 5),
       accounts: { mnemonic },
       saveDeployments: true,
-      chainId: 42,
+      chainId: 5,
     },
   },
   gasReporter: { enabled: process.env.REPORT_GAS !== undefined, currency: "USD" },
   etherscan: {
     apiKey: {
       mainnet: process.env.ETHERSCAN_API_KEY,
-      kovan: process.env.ETHERSCAN_API_KEY,
+      goerli: process.env.ETHERSCAN_API_KEY,
     },
   },
   namedAccounts: { deployer: 0 },
