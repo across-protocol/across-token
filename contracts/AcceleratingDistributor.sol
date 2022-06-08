@@ -72,7 +72,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 secondsToMaxMultiplier,
         uint256 lastUpdateTime
     );
-    event RecoverErc20(address indexed token, address indexed to, uint256 amount, address indexed caller);
+    event RecoverToken(address indexed token, uint256 amount);
     event Stake(
         address indexed token,
         address indexed user,
@@ -150,17 +150,22 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     }
 
     /**
-     * @notice Recover an ERC20 token either dropped on the contract or excess after the staking program ends.
-     * @dev Any wallet can call this function as it will only ever send tokens to the owner of the distributor.
-     * @param tokenAddress The address of the token to recover.
-     * @param amount The amount of the token to recover.
+     * @notice Enables the owner to recover tokens dropped onto the contract. This could be used to remove unclaimed
+     * staking rewards or recover excess LP tokens that were inadvertently dropped onto the contract. Importantly, the
+     * contract will only let the owner recover staked excess tokens above what the contract thinks it should have. i.e
+     * the owner cant use this method to steal staked tokens, only recover excess ones mistakenly sent to the contract.
+     * @param token The address of the token to skim.
      */
-    function recoverErc20(address tokenAddress, uint256 amount) external nonReentrant {
-        require(stakingTokens[tokenAddress].lastUpdateTime == 0, "Can't recover staking token");
-        require(tokenAddress != address(rewardToken), "Can't recover reward token");
-        IERC20(tokenAddress).safeTransfer(owner(), amount);
-
-        emit RecoverErc20(tokenAddress, owner(), amount, msg.sender);
+    function recoverToken(address token) external onlyOwner {
+        // If the token is an enabled staking token then we want to preform a skim action where we send back any extra
+        // tokens that are not accounted for in the cumulativeStaked variable. This lets the owner recover extra tokens
+        // sent to the contract that were not explicitly staked. if the token is not enabled for staking then we simply
+        // send back the full amount of tokens that the contract has.
+        uint256 amount = IERC20(token).balanceOf(address(this));
+        if (stakingTokens[token].lastUpdateTime != 0) amount -= stakingTokens[token].cumulativeStaked;
+        require(amount > 0, "Can't recover 0 tokens");
+        IERC20(token).safeTransfer(owner(), amount);
+        emit RecoverToken(token, amount);
     }
 
     /**************************************

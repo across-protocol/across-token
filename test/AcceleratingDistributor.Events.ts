@@ -23,13 +23,13 @@ describe("AcceleratingDistributor: Events", async function () {
       .withArgs(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, currentTime);
   });
 
-  it("RecoverErc20", async function () {
+  it("RecoverToken", async function () {
     const randomToken = await (await getContractFactory("TestToken", owner)).deploy("RANDO", "RANDO");
     const amount = toWei(420);
     await randomToken.mint(distributor.address, amount);
-    await expect(distributor.connect(rando).recoverErc20(randomToken.address, amount))
-      .to.emit(distributor, "RecoverErc20")
-      .withArgs(randomToken.address, owner.address, amount, rando.address);
+    await expect(distributor.recoverToken(randomToken.address))
+      .to.emit(distributor, "RecoverToken")
+      .withArgs(randomToken.address, amount);
   });
   it("Stake", async function () {
     const time1 = await distributor.getCurrentTime();
