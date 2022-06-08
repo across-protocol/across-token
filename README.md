@@ -31,6 +31,6 @@ yarn lint-fix
 ## Deploy and Verify
 
 ```shell
-NODE_URL_1=https://kovan.infura.com/xxx yarn hardhat deploy --network kovan
-ETHERSCAN_API_KEY=XXX yarn hardhat etherscan-verify --network kovan --license AGPL-3.0 --force-license --solc-input
+NODE_URL_5=https://goerli.infura.com/xxx yarn hardhat deploy --network goerli
+ETHERSCAN_API_KEY=XXX yarn hardhat etherscan-verify --network goerli --license AGPL-3.0 --force-license --solc-input
 ```
