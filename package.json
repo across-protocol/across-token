@@ -8,7 +8,7 @@
   "license": "AGPL-3.0",
   "dependencies": {
     "@uma/common": "^2.17.0",
-    "@openzeppelin/contracts": "^4.5.0",
+    "@openzeppelin/contracts": "^4.7.2",
     "hardhat": "^2.9.3"
   },
   "scripts": {
