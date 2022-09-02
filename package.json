@@ -1,9 +1,13 @@
 {
-  "name": "across-token",
+  "name": "@across-protocol/across-token",
   "version": "0.0.1",
   "description": "Across Protocol token and distribution contracts",
-  "main": "index.ts",
-  "repository": "git@github.com:across-protocol/across-token.git",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/across-protocol/across-token.git"
+  },
   "author": "Across Team",
   "license": "AGPL-3.0",
   "dependencies": {
@@ -17,7 +21,9 @@
     "prettier": "prettier .",
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "generate-contract-types": "rm -rf typechain && TYPECHAIN=ethers yarn hardhat typechain"
+    "build": "hardhat compile && tsc && rsync -a --include '*/' --include '*.d.ts' --exclude '*' ./typechain ./dist/",
+    "generate-contract-types": "rm -rf typechain && TYPECHAIN=ethers yarn hardhat typechain",
+    "prepublish": "yarn build && hardhat export --export-all ./cache/massExport.json && ts-node ./scripts/processHardhatExport.ts && prettier --write ./deployments/deployments.json && yarn generate-contract-types"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.0",
@@ -53,6 +59,10 @@
     "ts-mocha": "^9.0.2",
     "typechain": "^5.1.2",
     "typescript": "^4.5.2"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.com/",
+    "access": "public"
   },
   "husky": {
     "hooks": {
