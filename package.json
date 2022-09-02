@@ -8,6 +8,11 @@
     "type": "git",
     "url": "git+https://github.com/across-protocol/across-token.git"
   },
+  "files": [
+    "/contracts/**/*.sol",
+    "/artifacts/**/*",
+    "/dist/**/*"
+  ],
   "author": "Across Team",
   "license": "AGPL-3.0",
   "dependencies": {

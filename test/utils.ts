@@ -1,14 +1,11 @@
 import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
-import hre, { ethers } from "hardhat";
 import { BigNumber, Signer, Contract, ContractFactory } from "ethers";
+import hre, { ethers } from "hardhat";
 import { FactoryOptions } from "hardhat/types";
 
 import { safeMaxApprove, seedWalletAmount } from "./constants";
 chai.use(solidity);
-
-export { expect, Contract, ethers, hre, BigNumber, Signer };
-
 export interface SignerWithAddress extends Signer {
   address: string;
 }
@@ -50,3 +47,5 @@ export async function seedAndApproveWallet(
 export async function advanceTime(timer: Contract, amount: number) {
   await timer.setCurrentTime(Number(await timer.getCurrentTime()) + amount);
 }
+
+export { expect, Contract, ethers, hre, BigNumber, Signer };
