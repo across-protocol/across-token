@@ -4,7 +4,6 @@ import { BigNumber, Signer, Contract, ContractFactory } from "ethers";
 import hre, { ethers } from "hardhat";
 import { FactoryOptions } from "hardhat/types";
 
-import { safeMaxApprove, seedWalletAmount } from "./constants";
 chai.use(solidity);
 export interface SignerWithAddress extends Signer {
   address: string;
@@ -31,18 +30,6 @@ export const toBN = (num: string | number | BigNumber) => {
   if (num.toString().includes(".")) return BigNumber.from(parseInt(num.toString()));
   return BigNumber.from(num.toString());
 };
-
-export async function seedAndApproveWallet(
-  wallet: SignerWithAddress,
-  tokens: Contract[],
-  approvalTarget: Contract,
-  amountToMint: BigNumber = seedWalletAmount
-) {
-  for (const token of tokens) {
-    await token.mint(wallet.address, amountToMint);
-    await token.connect(wallet).approve(approvalTarget.address, safeMaxApprove);
-  }
-}
 
 export async function advanceTime(timer: Contract, amount: number) {
   await timer.setCurrentTime(Number(await timer.getCurrentTime()) + amount);
