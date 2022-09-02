@@ -5,7 +5,7 @@ module.exports = {
     mocha: true,
     node: true,
   },
-  plugins: ["@typescript-eslint"],
+  plugins: ["@typescript-eslint", "mocha"],
   extends: [
     "standard",
     "plugin:prettier/recommended",
@@ -22,5 +22,9 @@ module.exports = {
     "node/no-unsupported-features/es-syntax": ["error", { ignores: ["modules"] }],
     "mocha/no-exclusive-tests": "error",
     "@typescript-eslint/no-var-requires": 0,
+  },
+  node: {
+    resolvePaths: ["node_modules/@types"],
+    tryExtensions: [".js", ".json", ".node", ".ts", ".d.ts"],
   },
 };
