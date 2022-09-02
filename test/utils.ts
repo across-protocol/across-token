@@ -1,11 +1,11 @@
-import chai from "chai";
+import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
-chai.use(solidity);
-import { expect } from "chai";
-import hre from "hardhat";
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 import { BigNumber, Signer, Contract, ContractFactory } from "ethers";
 import { FactoryOptions } from "hardhat/types";
+
+import { safeMaxApprove, seedWalletAmount } from "./constants";
+chai.use(solidity);
 
 export { expect, Contract, ethers, hre, BigNumber, Signer };
 
@@ -34,8 +34,6 @@ export const toBN = (num: string | number | BigNumber) => {
   if (num.toString().includes(".")) return BigNumber.from(parseInt(num.toString()));
   return BigNumber.from(num.toString());
 };
-
-import { safeMaxApprove, seedWalletAmount } from "./constants";
 
 export async function seedAndApproveWallet(
   wallet: SignerWithAddress,
