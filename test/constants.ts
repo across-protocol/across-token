@@ -1,4 +1,4 @@
-import { toBN, toWei } from "./utils";
+import { BigNumber, toWei } from "./utils";
 
 export const baseEmissionRate = toWei(0.01); // Protocol should release 0.01 tokens per second.
 
