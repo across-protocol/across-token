@@ -39,5 +39,5 @@ ETHERSCAN_API_KEY=XXX yarn hardhat etherscan-verify --network goerli --license A
 
 ## Addresses
 
-- Ethereum: [0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1](https://etherscan.io/address/0x91BbfFac97b450597d252cDD215Ad033628BCd11)
+- Ethereum: [0x91BbfFac97b450597d252cDD215Ad033628BCd11](https://etherscan.io/address/0x91BbfFac97b450597d252cDD215Ad033628BCd11)
 - Optimism: [0xbefBcFD03206Ef6de888C8d39F864A25275909f9](https://optimistic.etherscan.io/address/0xbefbcfd03206ef6de888c8d39f864a25275909f9)
