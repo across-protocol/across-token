@@ -1,6 +1,6 @@
 import { expect, ethers, Contract, SignerWithAddress, toWei, seedAndApproveWallet, toBN, advanceTime } from "./utils";
 import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
-import { maxMultiplier, stakeAmount } from "./constants";
+import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, stakeAmount } from "./constants";
 
 let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract;
 let owner: SignerWithAddress, depositor1: SignerWithAddress, depositor2: SignerWithAddress;
@@ -48,8 +48,74 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     // Advance time forward another 800 seconds. We should now be at the max multiplier for the user of 5.
     await advanceTime(timer, 800);
     expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(5));
-    // Rewards entitled to the user should now be duration * baseEmissionRate * multiplier as 1000 * 0.01 * 5 = 50
+    // baseRewardPerToken = previous baseRewardPerToken + 800 * 0.01 / 10 = 1
+    expect(await distributor.baseRewardPerToken(lpToken1.address)).to.equal(toWei(1));
+    // Rewards entitled to the user should be baseRewardsPerToken * multiplier * stakedBalance as 1 * 5 * 10 = 50
     expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(50));
+  });
+  it("Changing staking token configuration can impact outstanding rewards", async function () {
+    // Same starting point as previous test after 200 seconds.
+    await distributor.connect(depositor1).stake(lpToken1.address, stakeAmount);
+    await advanceTime(timer, 200);
+
+    // Now, double the base reward per token, this should not impact outstanding rewards since the staking action.
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate.mul(2),
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(1.8));
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(3.6));
+    expect(await distributor.baseRewardPerToken(lpToken1.address)).to.equal(toWei(0.2));
+
+    // If we advance 800 more seconds, the outstanding rewards will accrue at the new rate. We are also now at the max
+    // multiplier for the user.
+    await advanceTime(timer, 800);
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(5));
+    // The baseRewardPerToken should now be the previous baseRewardPerToken + deltaInTime * the baseEmissionRate / cumulativeStaked.
+    // i.e baseRewardPerToken = 0.2 + 800 * 0.02 / 10 = 1.8
+    expect(await distributor.baseRewardPerToken(lpToken1.address)).to.equal(toWei(1.8));
+    // Rewards entitled to the user should be baseRewardsPerToken * multiplier * stakedBalance as 1.8 * 5 * 10 = 90
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(90));
+
+    // Lowering max multiplier does lower outstanding rewards without impacting base reward per token.
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier.div(2),
+      secondsToMaxMultiplier
+    );
+    expect(await distributor.baseRewardPerToken(lpToken1.address)).to.equal(toWei(1.8));
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(45));
+
+    // Raising max multiplier also changes outstanding rewards
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier.mul(2),
+      secondsToMaxMultiplier
+    );
+    expect(await distributor.baseRewardPerToken(lpToken1.address)).to.equal(toWei(1.8));
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(10));
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(180));
+
+    // Raising seconds to max multiplier changes outstanding rewards
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier * 2
+    );
+    expect(await distributor.baseRewardPerToken(lpToken1.address)).to.equal(toWei(1.8));
+    // User multiplier should be halfway between default 1x and max 5x = 3x.
+    expect(await distributor.getUserRewardMultiplier(lpToken1.address, depositor1.address)).to.equal(toWei(3));
+    // Rewards entitled to the user should be baseRewardsPerToken * multiplier * stakedBalance as 1.8 * 3 * 10 = 54
+    expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(54));
   });
   it("Multiple depositors, pro-rata distribution: same stake time and claim time", async function () {
     // Create a simple situation wherein both depositors deposit at the same time but have varying amounts.
