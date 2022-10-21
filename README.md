@@ -34,3 +34,11 @@ yarn lint-fix
 NODE_URL_5=https://goerli.infura.com/xxx yarn hardhat deploy --network goerli
 ETHERSCAN_API_KEY=XXX yarn hardhat etherscan-verify --network goerli --license AGPL-3.0 --force-license --solc-input
 ```
+
+# Across Token
+
+## Addresses
+
+- Ethereum: [0x44108f0223A3C3028F5Fe7AEC7f9bb2E66beF82F](https://etherscan.io/address/0x44108f0223A3C3028F5Fe7AEC7f9bb2E66beF82F)
+- Optimism: [0xff733b2a3557a7ed6697007ab5d11b79fdd1b76b](https://optimistic.etherscan.io/address/0xff733b2a3557a7ed6697007ab5d11b79fdd1b76b)
+- Arbitrum: [0x53691596d1bce8cea565b84d4915e69e03d9c99d](https://arbiscan.io/address/0x53691596d1bce8cea565b84d4915e69e03d9c99d)
