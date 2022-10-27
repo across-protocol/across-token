@@ -7,6 +7,30 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
+/// @notice The following interfaces and structs are used in a convenience function claimAndStake that allows
+//  new stakers to claim rewarded LP tokens from a MerkleDistributor and then stake them atomically. Structs
+//  are copied from the MerkleDistributor contracts which also contain further details on struct properties.
+
+struct Claim {
+    uint256 windowIndex;
+    uint256 amount;
+    uint256 accountIndex;
+    address account;
+    bytes32[] merkleProof;
+}
+struct Window {
+    bytes32 merkleRoot;
+    uint256 remainingAmount;
+    IERC20 rewardToken;
+    string ipfsHash;
+}
+
+interface IMerkleDistributor {
+    function claimMulti(Claim[] memory claims) external;
+
+    function getRewardTokenForWindow(uint256 windowIndex) external view returns (address);
+}
+
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
  * Stakers start by earning their pro-rata share of a baseEmissionRate per second which increases based on how long
@@ -176,32 +200,39 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      **************************************/
 
     /**
+     * @notice Claim tokens from MerkleDistributor and stake them for rewards.
+     * @dev The caller of this function must approve this contract to spend total amount of stakedToken.
+     * @param claims Claim leaves to retrieve from MerkleDistributor.
+     * @param stakedToken The address of the token to stake.
+     */
+    function claimAndStake(
+        Claim[] memory claims,
+        IMerkleDistributor merkleDistributor,
+        address stakedToken
+    ) external nonReentrant {
+        uint256 batchedAmount;
+        uint256 claimCount = claims.length;
+        for (uint256 i = 0; i < claimCount; i++) {
+            Claim memory _claim = claims[i];
+            require(_claim.account == msg.sender, "claim account not caller");
+            require(
+                merkleDistributor.getRewardTokenForWindow(_claim.windowIndex) == stakedToken,
+                "unexpected claim token"
+            );
+            batchedAmount += _claim.amount;
+        }
+        merkleDistributor.claimMulti(claims);
+        _stake(stakedToken, batchedAmount, msg.sender);
+    }
+
+    /**
      * @notice Stake tokens for rewards.
      * @dev The caller of this function must approve this contract to spend amount of stakedToken.
      * @param stakedToken The address of the token to stake.
      * @param amount The amount of the token to stake.
      */
     function stake(address stakedToken, uint256 amount) external nonReentrant onlyEnabled(stakedToken) {
-        _updateReward(stakedToken, msg.sender);
-
-        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
-
-        uint256 averageDepositTime = getAverageDepositTimePostDeposit(stakedToken, msg.sender, amount);
-
-        userDeposit.averageDepositTime = averageDepositTime;
-        userDeposit.cumulativeBalance += amount;
-        stakingTokens[stakedToken].cumulativeStaked += amount;
-
-        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
-
-        emit Stake(
-            stakedToken,
-            msg.sender,
-            amount,
-            averageDepositTime,
-            userDeposit.cumulativeBalance,
-            stakingTokens[stakedToken].cumulativeStaked
-        );
+        _stake(stakedToken, amount, msg.sender);
     }
 
     /**
@@ -390,5 +421,32 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
             userDeposit.rewardsOutstanding = getOutstandingRewards(stakedToken, account);
             userDeposit.rewardsAccumulatedPerToken = stakingToken.rewardPerTokenStored;
         }
+    }
+
+    function _stake(
+        address stakedToken,
+        uint256 amount,
+        address staker
+    ) internal {
+        _updateReward(stakedToken, staker);
+
+        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[staker];
+
+        uint256 averageDepositTime = getAverageDepositTimePostDeposit(stakedToken, staker, amount);
+
+        userDeposit.averageDepositTime = averageDepositTime;
+        userDeposit.cumulativeBalance += amount;
+        stakingTokens[stakedToken].cumulativeStaked += amount;
+
+        IERC20(stakedToken).safeTransferFrom(staker, address(this), amount);
+
+        emit Stake(
+            stakedToken,
+            staker,
+            amount,
+            averageDepositTime,
+            userDeposit.cumulativeBalance,
+            stakingTokens[stakedToken].cumulativeStaked
+        );
     }
 }
