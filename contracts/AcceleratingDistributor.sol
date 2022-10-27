@@ -45,6 +45,11 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
 
     IERC20 public immutable rewardToken;
 
+    // Contract which rewards tokens to users that they can then stake. MerkleDistributor logic does not impact
+    // this contract at all, but its stored here for convenience to allow claimAndStake to be called by a user to
+    // claim their staking tokens and stake atomically.
+    IMerkleDistributor public merkleDistributor;
+
     // Each User deposit is tracked with the information below.
     struct UserDeposit {
         uint256 cumulativeBalance;
@@ -96,6 +101,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 secondsToMaxMultiplier,
         uint256 lastUpdateTime
     );
+    event SetMerkleDistributor(address indexed newMerkleDistributor);
     event RecoverToken(address indexed token, uint256 amount);
     event Stake(
         address indexed token,
@@ -126,6 +132,11 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**************************************
      *          ADMIN FUNCTIONS           *
      **************************************/
+
+    function setMerkleDistributor(address _merkleDistributor) external onlyOwner {
+        merkleDistributor = IMerkleDistributor(_merkleDistributor);
+        emit SetMerkleDistributor(_merkleDistributor);
+    }
 
     /**
      * @notice Enable a token for staking.
@@ -200,16 +211,13 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      **************************************/
 
     /**
-     * @notice Claim tokens from MerkleDistributor and stake them for rewards.
+     * @notice Claim tokens from a MerkleDistributor contract and stake them for rewards.
+     * @dev Will revert if `merkleDistributor` is not set to valid MerkleDistributor contract.
      * @dev The caller of this function must approve this contract to spend total amount of stakedToken.
      * @param claims Claim leaves to retrieve from MerkleDistributor.
      * @param stakedToken The address of the token to stake.
      */
-    function claimAndStake(
-        Claim[] memory claims,
-        IMerkleDistributor merkleDistributor,
-        address stakedToken
-    ) external nonReentrant {
+    function claimAndStake(Claim[] memory claims, address stakedToken) external nonReentrant {
         uint256 batchedAmount;
         uint256 claimCount = claims.length;
         for (uint256 i = 0; i < claimCount; i++) {

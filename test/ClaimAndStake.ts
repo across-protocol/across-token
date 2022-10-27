@@ -52,6 +52,7 @@ describe("ClaimAndStake", async function () {
     [contractCreator, claimer] = await ethers.getSigners();
     merkleDistributor = await (await getContractFactory("MerkleDistributorTest", contractCreator)).deploy();
     ({ distributor, acrossToken, lpToken1 } = await acceleratingDistributorFixture());
+    await distributor.setMerkleDistributor(merkleDistributor.address);
 
     // Enable reward token for staking.
     await enableTokenForStaking(distributor, lpToken1, acrossToken);
@@ -116,6 +117,7 @@ describe("ClaimAndStake", async function () {
     expect(await lpToken1.balanceOf(merkleDistributor.address)).to.equal(toBN(0));
     expect(await lpToken1.balanceOf(claimer.address)).to.equal(toBN(0));
   });
+  it("MerkleDistributor not set");
   it("One claim account is not caller");
   it("One claim reward token is not staked token");
 });
