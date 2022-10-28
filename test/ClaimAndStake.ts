@@ -1,20 +1,10 @@
-import {
-  expect,
-  ethers,
-  Contract,
-  SignerWithAddress,
-  toWei,
-  toBN,
-  advanceTime,
-  getContractFactory,
-  BigNumber,
-} from "./utils";
+import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./utils";
 import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
 import { MAX_UINT_VAL } from "@uma/common";
 import { MerkleTree } from "@uma/merkle-distributor";
 
 let acrossToken: Contract, distributor: Contract, lpToken1: Contract, claimer: SignerWithAddress;
-let merkleDistributor: Contract, contractCreator: SignerWithAddress;
+let merkleDistributor: Contract, contractCreator: SignerWithAddress, lpToken2: Contract;
 
 type Recipient = {
   account: string;
@@ -44,14 +34,12 @@ const createLeaf = (recipient: Recipient) => {
 const window1RewardAmount = toBN(toWei("100"));
 const window2RewardAmount = toBN(toWei("300"));
 const totalBatchRewards = window1RewardAmount.add(window2RewardAmount);
+let batchedClaims: RecipientWithProof[];
 
-describe("ClaimAndStake", async function () {
-  let batchedClaims: RecipientWithProof[];
-
+describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
   beforeEach(async function () {
     [contractCreator, claimer] = await ethers.getSigners();
-    merkleDistributor = await (await getContractFactory("MerkleDistributorTest", contractCreator)).deploy();
-    ({ distributor, acrossToken, lpToken1 } = await acceleratingDistributorFixture());
+    ({ distributor, acrossToken, lpToken1, lpToken2, merkleDistributor } = await acceleratingDistributorFixture());
     await distributor.setMerkleDistributor(merkleDistributor.address);
 
     // Enable reward token for staking.
@@ -76,10 +64,12 @@ describe("ClaimAndStake", async function () {
         accountIndex: 0,
       },
     ];
+
     const merkleTree1 = new MerkleTree(reward1Recipients.map((item) => createLeaf(item)));
     await merkleDistributor
       .connect(contractCreator)
       .setWindow(window1RewardAmount, lpToken1.address, merkleTree1.getRoot(), "");
+
     const merkleTree2 = new MerkleTree(reward2Recipients.map((item) => createLeaf(item)));
     await merkleDistributor
       .connect(contractCreator)
@@ -103,12 +93,14 @@ describe("ClaimAndStake", async function () {
       },
     ];
     expect(await lpToken1.balanceOf(claimer.address)).to.equal(toBN(0));
+
+    // Tests require staker to have approved contract
+    await lpToken1.connect(claimer).approve(distributor.address, MAX_UINT_VAL);
   });
 
   it("Happy path", async function () {
-    await lpToken1.connect(claimer).approve(distributor.address, MAX_UINT_VAL);
     const time = await distributor.getCurrentTime();
-    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, merkleDistributor.address, lpToken1.address))
+    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address))
       .to.emit(distributor, "Stake")
       .withArgs(lpToken1.address, claimer.address, totalBatchRewards, time, totalBatchRewards, totalBatchRewards);
     expect((await distributor.getUserStake(lpToken1.address, claimer.address)).cumulativeBalance).to.equal(
@@ -117,7 +109,22 @@ describe("ClaimAndStake", async function () {
     expect(await lpToken1.balanceOf(merkleDistributor.address)).to.equal(toBN(0));
     expect(await lpToken1.balanceOf(claimer.address)).to.equal(toBN(0));
   });
-  it("MerkleDistributor not set");
-  it("One claim account is not caller");
-  it("One claim reward token is not staked token");
+  it("MerkleDistributor set to invalid address", async function () {
+    await distributor.setMerkleDistributor(distributor.address);
+    // distributor is not a valid MerkleDistributor and error explains that.
+    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address)).to.be.revertedWith(
+      "function selector was not recognized and there's no fallback function"
+    );
+  });
+  it("One claim account is not caller", async function () {
+    // Claiming with account that isn't receiving the claims causes revert
+    await expect(
+      distributor.connect(contractCreator).claimAndStake(batchedClaims, lpToken1.address)
+    ).to.be.revertedWith("claim account not caller");
+  });
+  it("One claim reward token is not staked token", async function () {
+    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken2.address)).to.be.revertedWith(
+      "unexpected claim token"
+    );
+  });
 });

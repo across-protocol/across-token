@@ -95,4 +95,3 @@ describe("AcceleratingDistributor: Events", async function () {
       .withArgs(lpToken1.address, depositor1.address, 0);
   });
 });
-``;
