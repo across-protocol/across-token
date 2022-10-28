@@ -2,6 +2,7 @@ import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./util
 import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
 import { MAX_UINT_VAL } from "@uma/common";
 import { MerkleTree } from "@uma/merkle-distributor";
+import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
 let acrossToken: Contract, distributor: Contract, lpToken1: Contract, claimer: SignerWithAddress;
 let merkleDistributor: Contract, contractCreator: SignerWithAddress, lpToken2: Contract;
@@ -125,6 +126,19 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
   it("One claim reward token is not staked token", async function () {
     await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken2.address)).to.be.revertedWith(
       "unexpected claim token"
+    );
+  });
+  it("Claimed token is not eligible for stkaing", async function () {
+    // Disable staking token
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      false,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
+    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address)).to.be.revertedWith(
+      "stakedToken not enabled"
     );
   });
 });

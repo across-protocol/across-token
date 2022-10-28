@@ -133,6 +133,10 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      *          ADMIN FUNCTIONS           *
      **************************************/
 
+    /**
+     * @notice Resets merkle distributor contract called in claimAndStake()
+     * @param _merkleDistributor Address to set merkleDistributor to.
+     */
     function setMerkleDistributor(address _merkleDistributor) external onlyOwner {
         merkleDistributor = IMerkleDistributor(_merkleDistributor);
         emit SetMerkleDistributor(_merkleDistributor);
@@ -213,11 +217,13 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**
      * @notice Claim tokens from a MerkleDistributor contract and stake them for rewards.
      * @dev Will revert if `merkleDistributor` is not set to valid MerkleDistributor contract.
+     * @dev Will revert if any of the claims recipient accounts are not equal to caller, or if any reward token
+     *      for claim is not a valid staking token or are not the same token as the other claims.
      * @dev The caller of this function must approve this contract to spend total amount of stakedToken.
      * @param claims Claim leaves to retrieve from MerkleDistributor.
      * @param stakedToken The address of the token to stake.
      */
-    function claimAndStake(Claim[] memory claims, address stakedToken) external nonReentrant {
+    function claimAndStake(Claim[] memory claims, address stakedToken) external nonReentrant onlyEnabled(stakedToken) {
         uint256 batchedAmount;
         uint256 claimCount = claims.length;
         for (uint256 i = 0; i < claimCount; i++) {
