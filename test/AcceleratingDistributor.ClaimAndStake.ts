@@ -124,6 +124,14 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
     ).to.be.revertedWith("claim account not caller");
   });
   it("One claim reward token is not staked token", async function () {
+    // Enable new staking token that doesn't match claims.
+    await distributor.configureStakingToken(
+      lpToken2.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
     await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken2.address)).to.be.revertedWith(
       "unexpected claim token"
     );
