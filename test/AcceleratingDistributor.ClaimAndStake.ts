@@ -41,7 +41,6 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
   beforeEach(async function () {
     [contractCreator, claimer] = await ethers.getSigners();
     ({ distributor, acrossToken, lpToken1, lpToken2, merkleDistributor } = await acceleratingDistributorFixture());
-    await distributor.setMerkleDistributor(merkleDistributor.address);
 
     // Enable reward token for staking.
     await enableTokenForStaking(distributor, lpToken1, acrossToken);
@@ -110,11 +109,22 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
     expect(await lpToken1.balanceOf(merkleDistributor.address)).to.equal(toBN(0));
     expect(await lpToken1.balanceOf(claimer.address)).to.equal(toBN(0));
   });
+  it("Fails if AcceleratingDistributor is not whitelisted claimer on MerkleDistributor", async function () {
+    await merkleDistributor.whitelistClaimer(distributor.address, false);
+    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address)).to.be.revertedWith(
+      "invalid claimer"
+    );
+  });
   it("MerkleDistributor set to invalid address", async function () {
     await distributor.setMerkleDistributor(distributor.address);
     // distributor is not a valid MerkleDistributor and error explains that.
     await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address)).to.be.revertedWith(
       "function selector was not recognized and there's no fallback function"
+    );
+  });
+  it("Only owner can set MerkleDistributor address", async function () {
+    await expect(distributor.connect(claimer).setMerkleDistributor(distributor.address)).to.be.revertedWith(
+      "Ownable: caller is not the owner"
     );
   });
   it("One claim account is not caller", async function () {

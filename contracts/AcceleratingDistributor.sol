@@ -7,30 +7,6 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
-/// @notice The following interfaces and structs are used in a convenience function claimAndStake that allows
-//  new stakers to claim rewarded LP tokens from a MerkleDistributor and then stake them atomically. Structs
-//  are copied from the MerkleDistributor contracts which also contain further details on struct properties.
-
-struct Claim {
-    uint256 windowIndex;
-    uint256 amount;
-    uint256 accountIndex;
-    address account;
-    bytes32[] merkleProof;
-}
-struct Window {
-    bytes32 merkleRoot;
-    uint256 remainingAmount;
-    IERC20 rewardToken;
-    string ipfsHash;
-}
-
-interface IMerkleDistributor {
-    function claimMulti(Claim[] memory claims) external;
-
-    function getRewardTokenForWindow(uint256 windowIndex) external view returns (address);
-}
-
 /**
  * @notice Across token distribution contract. Contract is inspired by Synthetix staking contract and Ampleforth geyser.
  * Stakers start by earning their pro-rata share of a baseEmissionRate per second which increases based on how long
@@ -44,11 +20,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable rewardToken;
-
-    // Contract which rewards tokens to users that they can then stake. MerkleDistributor logic does not impact
-    // this contract at all, but its stored here for convenience to allow claimAndStake to be called by a user to
-    // claim their staking tokens and stake atomically.
-    IMerkleDistributor public merkleDistributor;
 
     // Each User deposit is tracked with the information below.
     struct UserDeposit {
@@ -101,7 +72,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 secondsToMaxMultiplier,
         uint256 lastUpdateTime
     );
-    event SetMerkleDistributor(address indexed newMerkleDistributor);
     event RecoverToken(address indexed token, uint256 amount);
     event Stake(
         address indexed token,
@@ -132,15 +102,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**************************************
      *          ADMIN FUNCTIONS           *
      **************************************/
-
-    /**
-     * @notice Resets merkle distributor contract called in claimAndStake()
-     * @param _merkleDistributor Address to set merkleDistributor to.
-     */
-    function setMerkleDistributor(address _merkleDistributor) external onlyOwner {
-        merkleDistributor = IMerkleDistributor(_merkleDistributor);
-        emit SetMerkleDistributor(_merkleDistributor);
-    }
 
     /**
      * @notice Enable a token for staking.
@@ -213,31 +174,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**************************************
      *          STAKER FUNCTIONS          *
      **************************************/
-
-    /**
-     * @notice Claim tokens from a MerkleDistributor contract and stake them for rewards.
-     * @dev Will revert if `merkleDistributor` is not set to valid MerkleDistributor contract.
-     * @dev Will revert if any of the claims recipient accounts are not equal to caller, or if any reward token
-     *      for claim is not a valid staking token or are not the same token as the other claims.
-     * @dev The caller of this function must approve this contract to spend total amount of stakedToken.
-     * @param claims Claim leaves to retrieve from MerkleDistributor.
-     * @param stakedToken The address of the token to stake.
-     */
-    function claimAndStake(Claim[] memory claims, address stakedToken) external nonReentrant onlyEnabled(stakedToken) {
-        uint256 batchedAmount;
-        uint256 claimCount = claims.length;
-        for (uint256 i = 0; i < claimCount; i++) {
-            Claim memory _claim = claims[i];
-            require(_claim.account == msg.sender, "claim account not caller");
-            require(
-                merkleDistributor.getRewardTokenForWindow(_claim.windowIndex) == stakedToken,
-                "unexpected claim token"
-            );
-            batchedAmount += _claim.amount;
-        }
-        merkleDistributor.claimMulti(claims);
-        _stake(stakedToken, batchedAmount, msg.sender);
-    }
 
     /**
      * @notice Stake tokens for rewards.
