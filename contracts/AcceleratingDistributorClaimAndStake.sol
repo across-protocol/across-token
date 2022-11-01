@@ -54,6 +54,7 @@ contract AcceleratingDistributorClaimAndStake is AcceleratingDistributor {
      * @dev Will revert if `merkleDistributor` is not set to valid MerkleDistributor contract.
      * @dev Will revert if any of the claims recipient accounts are not equal to caller, or if any reward token
      *      for claim is not a valid staking token or are not the same token as the other claims.
+     * @dev Will revert if this contract is not a "whitelisted claimer" on the MerkleDistributor contract.
      * @dev The caller of this function must approve this contract to spend total amount of stakedToken.
      * @param claims Claim leaves to retrieve from MerkleDistributor.
      * @param stakedToken The address of the token to stake.
