@@ -146,7 +146,7 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
       "unexpected claim token"
     );
   });
-  it("Claimed token is not eligible for stkaing", async function () {
+  it("Claimed token is not eligible for staking", async function () {
     // Disable staking token
     await distributor.configureStakingToken(
       lpToken1.address,
