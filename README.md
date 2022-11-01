@@ -42,3 +42,4 @@ ETHERSCAN_API_KEY=XXX yarn hardhat etherscan-verify --network goerli --license A
 - Ethereum: [0x44108f0223A3C3028F5Fe7AEC7f9bb2E66beF82F](https://etherscan.io/address/0x44108f0223A3C3028F5Fe7AEC7f9bb2E66beF82F)
 - Optimism: [0xff733b2a3557a7ed6697007ab5d11b79fdd1b76b](https://optimistic.etherscan.io/address/0xff733b2a3557a7ed6697007ab5d11b79fdd1b76b)
 - Arbitrum: [0x53691596d1bce8cea565b84d4915e69e03d9c99d](https://arbiscan.io/address/0x53691596d1bce8cea565b84d4915e69e03d9c99d)
+- Polygon:  [0xF328b73B6c685831F238c30a23Fc19140CB4D8FC](https://polygonscan.com/token/0xf328b73b6c685831f238c30a23fc19140cb4d8fc)
