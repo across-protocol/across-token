@@ -183,6 +183,25 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      */
     function stake(address stakedToken, uint256 amount) external nonReentrant onlyEnabled(stakedToken) {
         _stake(stakedToken, amount, msg.sender);
+        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
+    }
+
+    /**
+     * @notice Stake tokens for rewards on behalf of `beneficiary`.
+     * @dev The caller of this function must approve this contract to spend amount of stakedToken.
+     * @dev The caller of this function is effectively donating their tokens to the beneficiary. The beneficiary
+     * can then unstake or claim rewards as they wish.
+     * @param beneficiary User that caller wants to stake on behalf of.
+     * @param stakedToken The address of the token to stake.
+     * @param amount The amount of the token to stake.
+     */
+    function stakeFor(
+        address beneficiary,
+        address stakedToken,
+        uint256 amount
+    ) external nonReentrant onlyEnabled(stakedToken) {
+        _stake(stakedToken, amount, beneficiary);
+        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -387,8 +406,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         userDeposit.averageDepositTime = averageDepositTime;
         userDeposit.cumulativeBalance += amount;
         stakingTokens[stakedToken].cumulativeStaked += amount;
-
-        IERC20(stakedToken).safeTransferFrom(staker, address(this), amount);
 
         emit Stake(
             stakedToken,

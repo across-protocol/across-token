@@ -16,10 +16,11 @@ export const acceleratingDistributorFixture = hre.deployments.createFixture(asyn
   const lpToken2 = await (await getContractFactory("TestToken", deployerWallet)).deploy("LP2", "LP Token 2");
 
   const merkleDistributor = await (await getContractFactory("MerkleDistributorTest", deployerWallet)).deploy();
-  await merkleDistributor.whitelistClaimer(distributor.address, true);
-  await distributor.setMerkleDistributor(merkleDistributor.address);
+  const claimAndStake = await (await getContractFactory("ClaimAndStake", deployerWallet)).deploy();
+  await merkleDistributor.whitelistClaimer(claimAndStake.address, true);
+  await claimAndStake.setDistributorContracts(merkleDistributor.address, distributor.address);
 
-  return { timer, acrossToken, distributor, lpToken1, lpToken2, merkleDistributor };
+  return { timer, acrossToken, distributor, lpToken1, lpToken2, merkleDistributor, claimAndStake };
 });
 
 export async function enableTokenForStaking(distributor: Contract, lpToken: Contract, acrossToken: Contract) {

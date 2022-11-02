@@ -1,11 +1,11 @@
-import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./utils";
+import { expect, ethers, Contract, SignerWithAddress, toWei, toBN, getContractFactory } from "./utils";
 import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
-import { MAX_UINT_VAL } from "@uma/common";
+import { MAX_UINT_VAL, ZERO_ADDRESS } from "@uma/common";
 import { MerkleTree } from "@uma/merkle-distributor";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
 let acrossToken: Contract, distributor: Contract, lpToken1: Contract, claimer: SignerWithAddress;
-let merkleDistributor: Contract, contractCreator: SignerWithAddress, lpToken2: Contract;
+let merkleDistributor: Contract, contractCreator: SignerWithAddress, lpToken2: Contract, claimAndStake: Contract;
 
 type Recipient = {
   account: string;
@@ -37,10 +37,11 @@ const window2RewardAmount = toBN(toWei("300"));
 const totalBatchRewards = window1RewardAmount.add(window2RewardAmount);
 let batchedClaims: RecipientWithProof[];
 
-describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
+describe("ClaimAndStake: Atomic Claim and Stake", async function () {
   beforeEach(async function () {
     [contractCreator, claimer] = await ethers.getSigners();
-    ({ distributor, acrossToken, lpToken1, lpToken2, merkleDistributor } = await acceleratingDistributorFixture());
+    ({ distributor, acrossToken, lpToken1, lpToken2, merkleDistributor, claimAndStake } =
+      await acceleratingDistributorFixture());
 
     // Enable reward token for staking.
     await enableTokenForStaking(distributor, lpToken1, acrossToken);
@@ -100,40 +101,44 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
 
   it("Happy path", async function () {
     const time = await distributor.getCurrentTime();
-    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address))
+    await expect(claimAndStake.connect(claimer).claimAndStake(batchedClaims[0], lpToken1.address))
       .to.emit(distributor, "Stake")
-      .withArgs(lpToken1.address, claimer.address, totalBatchRewards, time, totalBatchRewards, totalBatchRewards);
+      .withArgs(lpToken1.address, claimer.address, window1RewardAmount, time, window1RewardAmount, window1RewardAmount);
+    expect((await distributor.getUserStake(lpToken1.address, claimer.address)).cumulativeBalance).to.equal(
+      window1RewardAmount
+    );
+    expect((await distributor.getUserStake(lpToken1.address, claimAndStake.address)).cumulativeBalance).to.equal(
+      toBN(0)
+    );
+    expect(await lpToken1.balanceOf(merkleDistributor.address)).to.equal(window2RewardAmount);
+    expect(await lpToken1.balanceOf(claimer.address)).to.equal(toBN(0));
+  });
+  it("Multicall", async function () {
+    const callData1 = claimAndStake.interface.encodeFunctionData("claimAndStake", [batchedClaims[0], lpToken1.address]);
+    const callData2 = claimAndStake.interface.encodeFunctionData("claimAndStake", [batchedClaims[1], lpToken1.address]);
+    await claimAndStake.connect(claimer).multicall([callData1, callData2]);
     expect((await distributor.getUserStake(lpToken1.address, claimer.address)).cumulativeBalance).to.equal(
       totalBatchRewards
+    );
+    expect((await distributor.getUserStake(lpToken1.address, claimAndStake.address)).cumulativeBalance).to.equal(
+      toBN(0)
     );
     expect(await lpToken1.balanceOf(merkleDistributor.address)).to.equal(toBN(0));
     expect(await lpToken1.balanceOf(claimer.address)).to.equal(toBN(0));
   });
-  it("Fails if AcceleratingDistributor is not whitelisted claimer on MerkleDistributor", async function () {
-    await merkleDistributor.whitelistClaimer(distributor.address, false);
-    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address)).to.be.revertedWith(
-      "invalid claimer"
+  it("Fails if ClaimAndStake contract is not whitelisted claimer on MerkleDistributor", async function () {
+    await merkleDistributor.whitelistClaimer(claimAndStake.address, false);
+    await expect(claimAndStake.connect(claimer).claimAndStake(batchedClaims[0], lpToken1.address)).to.be.revertedWith(
+      "unwhitelisted claimer"
     );
   });
-  it("MerkleDistributor set to invalid address", async function () {
-    await distributor.setMerkleDistributor(distributor.address);
-    // distributor is not a valid MerkleDistributor and error explains that.
-    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address)).to.be.revertedWith(
-      "function selector was not recognized and there's no fallback function"
-    );
-  });
-  it("Only owner can set MerkleDistributor address", async function () {
-    await expect(distributor.connect(claimer).setMerkleDistributor(distributor.address)).to.be.revertedWith(
-      "Ownable: caller is not the owner"
-    );
-  });
-  it("One claim account is not caller", async function () {
+  it("Claim account is not caller", async function () {
     // Claiming with account that isn't receiving the claims causes revert
     await expect(
-      distributor.connect(contractCreator).claimAndStake(batchedClaims, lpToken1.address)
+      claimAndStake.connect(contractCreator).claimAndStake(batchedClaims[0], lpToken1.address)
     ).to.be.revertedWith("claim account not caller");
   });
-  it("One claim reward token is not staked token", async function () {
+  it("Claim reward token is not staked token", async function () {
     // Enable new staking token that doesn't match claims.
     await distributor.configureStakingToken(
       lpToken2.address,
@@ -142,7 +147,7 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
       maxMultiplier,
       secondsToMaxMultiplier
     );
-    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken2.address)).to.be.revertedWith(
+    await expect(claimAndStake.connect(claimer).claimAndStake(batchedClaims[0], lpToken2.address)).to.be.revertedWith(
       "unexpected claim token"
     );
   });
@@ -155,8 +160,14 @@ describe("AcceleratingDistributor: Atomic Claim and Stake", async function () {
       maxMultiplier,
       secondsToMaxMultiplier
     );
-    await expect(distributor.connect(claimer).claimAndStake(batchedClaims, lpToken1.address)).to.be.revertedWith(
+    await expect(claimAndStake.connect(claimer).claimAndStake(batchedClaims[0], lpToken1.address)).to.be.revertedWith(
       "stakedToken not enabled"
     );
+  });
+  it("Setting distributor addresses", async function () {
+    // Only owner can call
+    await expect(
+      claimAndStake.connect(claimer).setDistributorContracts(merkleDistributor.address, distributor.address)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
   });
 });
