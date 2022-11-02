@@ -183,7 +183,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      */
     function stake(address stakedToken, uint256 amount) external nonReentrant onlyEnabled(stakedToken) {
         _stake(stakedToken, amount, msg.sender);
-        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -201,7 +200,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 amount
     ) external nonReentrant onlyEnabled(stakedToken) {
         _stake(stakedToken, amount, beneficiary);
-        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -407,6 +405,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         userDeposit.cumulativeBalance += amount;
         stakingTokens[stakedToken].cumulativeStaked += amount;
 
+        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
         emit Stake(
             stakedToken,
             staker,
