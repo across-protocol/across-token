@@ -6,16 +6,13 @@ const func = async function (hre: HardhatRuntimeEnvironment) {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  const merkleDistributor = await deployments.get("AcrossMerkleDistributor");
-  const acceleratingDistributor = await deployments.get("AcceleratingDistributor");
-
-  await deploy("ClaimAndStake", {
+  await deploy("AcrossMerkleDistributor", {
     from: deployer,
     log: true,
     skipIfAlreadyDeployed: true,
-    args: [merkleDistributor.address, acceleratingDistributor.address],
+    args: [],
   });
 };
 
 module.exports = func;
-func.tags = ["ClaimAndStake", "mainnet"];
+func.tags = ["AcrossMerkleDistributor", "mainnet"];

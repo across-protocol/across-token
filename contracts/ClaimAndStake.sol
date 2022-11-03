@@ -30,37 +30,22 @@ contract ClaimAndStake is ReentrancyGuard, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
     // Contract which rewards tokens to users that they can then stake.
-    AcrossMerkleDistributorInterface public merkleDistributor;
+    AcrossMerkleDistributorInterface public immutable merkleDistributor;
 
     // Contract that user stakes claimed tokens into.
-    AcceleratingDistributorInterface public acceleratingDistributor;
+    AcceleratingDistributorInterface public immutable acceleratingDistributor;
 
-    /**************************************
-     *               EVENTS               *
-     **************************************/
-    event SetMerkleDistributor(AcrossMerkleDistributorInterface indexed newMerkleDistributor);
-    event SetAcceleratingDistributor(AcceleratingDistributorInterface indexed newAcceleratingDistributor);
-
-    constructor() {}
+    constructor(
+        AcrossMerkleDistributorInterface _merkleDistributor,
+        AcceleratingDistributorInterface _acceleratingDistributor
+    ) {
+        merkleDistributor = _merkleDistributor;
+        acceleratingDistributor = _acceleratingDistributor;
+    }
 
     /**************************************
      *          ADMIN FUNCTIONS           *
      **************************************/
-
-    /**
-     * @notice Sets merkle and accelerating distributor contracts called in claimAndStake.
-     * @param _merkleDistributor Address to set merkleDistributor to.
-     * @param _acceleratingDistributor Address to set acceleratingDistributor to.
-     */
-    function setDistributorContracts(
-        AcrossMerkleDistributorInterface _merkleDistributor,
-        AcceleratingDistributorInterface _acceleratingDistributor
-    ) external nonReentrant onlyOwner {
-        merkleDistributor = _merkleDistributor;
-        acceleratingDistributor = _acceleratingDistributor;
-        emit SetMerkleDistributor(_merkleDistributor);
-        emit SetAcceleratingDistributor(_acceleratingDistributor);
-    }
 
     /**
      * @notice Claim tokens from a MerkleDistributor contract and stake them for rewards in AcceleratingDistributor.
@@ -69,13 +54,12 @@ contract ClaimAndStake is ReentrancyGuard, Ownable, Multicall {
      *      for claim is not a valid staking token.
      * @dev Will revert if this contract is not a "whitelisted claimer" on the MerkleDistributor contract.
      * @param _claim Claim leaf to retrieve from MerkleDistributor.
-     * @param stakedToken The address of the token to stake.
      */
-    function claimAndStake(MerkleDistributorInterface.Claim memory _claim, address stakedToken) external nonReentrant {
+    function claimAndStake(MerkleDistributorInterface.Claim memory _claim) external nonReentrant {
         require(_claim.account == msg.sender, "claim account not caller");
-        require(merkleDistributor.getRewardTokenForWindow(_claim.windowIndex) == stakedToken, "unexpected claim token");
+        address stakedToken = merkleDistributor.getRewardTokenForWindow(_claim.windowIndex);
         merkleDistributor.claimFor(_claim);
-        IERC20(stakedToken).safeApprove(address(acceleratingDistributor), _claim.amount);
+        IERC20(stakedToken).safeIncreaseAllowance(address(acceleratingDistributor), _claim.amount);
         acceleratingDistributor.stakeFor(msg.sender, stakedToken, _claim.amount);
     }
 }
