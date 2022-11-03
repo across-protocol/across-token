@@ -45,6 +45,6 @@ contract ClaimAndStake is ReentrancyGuard, Multicall {
         address stakedToken = merkleDistributor.getRewardTokenForWindow(_claim.windowIndex);
         merkleDistributor.claimFor(_claim);
         IERC20(stakedToken).safeIncreaseAllowance(address(acceleratingDistributor), _claim.amount);
-        acceleratingDistributor.stakeFor(msg.sender, stakedToken, _claim.amount);
+        acceleratingDistributor.stakeFor(stakedToken, _claim.amount, msg.sender);
     }
 }

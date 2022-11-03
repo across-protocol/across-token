@@ -58,7 +58,7 @@ describe("AcceleratingDistributor: Events", async function () {
   it("StakeFor", async function () {
     const time1 = await distributor.getCurrentTime();
 
-    await expect(distributor.connect(depositor1).stakeFor(rando.address, lpToken1.address, stakeAmount))
+    await expect(distributor.connect(depositor1).stakeFor(lpToken1.address, stakeAmount, rando.address))
       .to.emit(distributor, "Stake")
       .withArgs(lpToken1.address, rando.address, stakeAmount, time1, stakeAmount, stakeAmount);
 
@@ -68,7 +68,7 @@ describe("AcceleratingDistributor: Events", async function () {
     const avgDepositTime = time1.add(
       stakeAmount.mul(2).mul(toWei(1)).div(stakeAmount.mul(3)).mul(time2.sub(time1)).div(toWei(1))
     );
-    await expect(distributor.connect(depositor1).stakeFor(rando.address, lpToken1.address, stakeAmount.mul(2)))
+    await expect(distributor.connect(depositor1).stakeFor(lpToken1.address, stakeAmount.mul(2), rando.address))
       .to.emit(distributor, "Stake")
       .withArgs(
         lpToken1.address,

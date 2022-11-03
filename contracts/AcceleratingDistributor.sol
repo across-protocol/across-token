@@ -190,14 +190,14 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @dev The caller of this function must approve this contract to spend amount of stakedToken.
      * @dev The caller of this function is effectively donating their tokens to the beneficiary. The beneficiary
      * can then unstake or claim rewards as they wish.
-     * @param beneficiary User that caller wants to stake on behalf of.
      * @param stakedToken The address of the token to stake.
      * @param amount The amount of the token to stake.
+     * @param beneficiary User that caller wants to stake on behalf of.
      */
     function stakeFor(
-        address beneficiary,
         address stakedToken,
-        uint256 amount
+        uint256 amount,
+        address beneficiary
     ) external nonReentrant onlyEnabled(stakedToken) {
         _stake(stakedToken, amount, beneficiary);
     }

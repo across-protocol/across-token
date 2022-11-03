@@ -54,7 +54,7 @@ describe("AcceleratingDistributor: Staking Rewards", async function () {
     expect(await distributor.getOutstandingRewards(lpToken1.address, depositor1.address)).to.equal(toWei(50));
   });
   it("Staking on behalf of user", async function () {
-    await expect(() => distributor.connect(depositor1).stakeFor(depositor2.address, lpToken1.address, stakeAmount))
+    await expect(() => distributor.connect(depositor1).stakeFor(lpToken1.address, stakeAmount, depositor2.address))
       // Token balances should change as expected
       .to.changeTokenBalances(lpToken1, [distributor, depositor1], [stakeAmount, stakeAmount.mul(-1)]);
     // Should have correct staked amount.
