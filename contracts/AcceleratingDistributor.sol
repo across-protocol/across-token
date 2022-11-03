@@ -182,26 +182,24 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param amount The amount of the token to stake.
      */
     function stake(address stakedToken, uint256 amount) external nonReentrant onlyEnabled(stakedToken) {
-        _updateReward(stakedToken, msg.sender);
+        _stake(stakedToken, amount, msg.sender);
+    }
 
-        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
-
-        uint256 averageDepositTime = getAverageDepositTimePostDeposit(stakedToken, msg.sender, amount);
-
-        userDeposit.averageDepositTime = averageDepositTime;
-        userDeposit.cumulativeBalance += amount;
-        stakingTokens[stakedToken].cumulativeStaked += amount;
-
-        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
-
-        emit Stake(
-            stakedToken,
-            msg.sender,
-            amount,
-            averageDepositTime,
-            userDeposit.cumulativeBalance,
-            stakingTokens[stakedToken].cumulativeStaked
-        );
+    /**
+     * @notice Stake tokens for rewards on behalf of `beneficiary`.
+     * @dev The caller of this function must approve this contract to spend amount of stakedToken.
+     * @dev The caller of this function is effectively donating their tokens to the beneficiary. The beneficiary
+     * can then unstake or claim rewards as they wish.
+     * @param stakedToken The address of the token to stake.
+     * @param amount The amount of the token to stake.
+     * @param beneficiary User that caller wants to stake on behalf of.
+     */
+    function stakeFor(
+        address stakedToken,
+        uint256 amount,
+        address beneficiary
+    ) external nonReentrant onlyEnabled(stakedToken) {
+        _stake(stakedToken, amount, beneficiary);
     }
 
     /**
@@ -390,5 +388,31 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
             userDeposit.rewardsOutstanding = getOutstandingRewards(stakedToken, account);
             userDeposit.rewardsAccumulatedPerToken = stakingToken.rewardPerTokenStored;
         }
+    }
+
+    function _stake(
+        address stakedToken,
+        uint256 amount,
+        address staker
+    ) internal {
+        _updateReward(stakedToken, staker);
+
+        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[staker];
+
+        uint256 averageDepositTime = getAverageDepositTimePostDeposit(stakedToken, staker, amount);
+
+        userDeposit.averageDepositTime = averageDepositTime;
+        userDeposit.cumulativeBalance += amount;
+        stakingTokens[stakedToken].cumulativeStaked += amount;
+
+        IERC20(stakedToken).safeTransferFrom(msg.sender, address(this), amount);
+        emit Stake(
+            stakedToken,
+            staker,
+            amount,
+            averageDepositTime,
+            userDeposit.cumulativeBalance,
+            stakingTokens[stakedToken].cumulativeStaked
+        );
     }
 }

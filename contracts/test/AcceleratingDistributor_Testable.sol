@@ -5,7 +5,7 @@ import "../AcceleratingDistributor.sol";
 import "./Testable.sol";
 
 /**
- * @notice // Tesable version of the AcceleratingDistributor that enables time to be overridden with a Testable contract.
+ * @notice // Testable version of the AcceleratingDistributor that enables time to be overridden with a Testable contract.
  */
 
 contract AcceleratingDistributor_Testable is AcceleratingDistributor, Testable {
