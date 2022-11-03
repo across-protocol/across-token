@@ -4,21 +4,9 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
-import "@uma/core/contracts/merkle-distributor/implementation/MerkleDistributorInterface.sol";
-
-interface AcceleratingDistributorInterface {
-    function stakeFor(
-        address beneficiary,
-        address stakedToken,
-        uint256 amount
-    ) external;
-}
-
-interface AcrossMerkleDistributorInterface is MerkleDistributorInterface {
-    function claimFor(MerkleDistributorInterface.Claim memory _claim) external;
-}
+import "@across-protocol/contracts-v2/contracts/merkle-distributor/AcrossMerkleDistributor.sol";
+import "./AcceleratingDistributor.sol";
 
 /**
  * @notice Allows claimer to claim tokens from AcrossMerkleDistributor and stake into AcceleratingDistributor
@@ -26,19 +14,16 @@ interface AcrossMerkleDistributorInterface is MerkleDistributorInterface {
  * AcceleratingDistributor to spend its staking tokens.
  */
 
-contract ClaimAndStake is ReentrancyGuard, Ownable, Multicall {
+contract ClaimAndStake is ReentrancyGuard, Multicall {
     using SafeERC20 for IERC20;
 
     // Contract which rewards tokens to users that they can then stake.
-    AcrossMerkleDistributorInterface public immutable merkleDistributor;
+    AcrossMerkleDistributor public immutable merkleDistributor;
 
     // Contract that user stakes claimed tokens into.
-    AcceleratingDistributorInterface public immutable acceleratingDistributor;
+    AcceleratingDistributor public immutable acceleratingDistributor;
 
-    constructor(
-        AcrossMerkleDistributorInterface _merkleDistributor,
-        AcceleratingDistributorInterface _acceleratingDistributor
-    ) {
+    constructor(AcrossMerkleDistributor _merkleDistributor, AcceleratingDistributor _acceleratingDistributor) {
         merkleDistributor = _merkleDistributor;
         acceleratingDistributor = _acceleratingDistributor;
     }
