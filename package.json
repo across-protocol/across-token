@@ -1,6 +1,6 @@
 {
   "name": "@across-protocol/across-token",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Across Protocol token and distribution contracts",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
