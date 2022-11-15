@@ -292,7 +292,12 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**
      * @notice Returns the base rewards per staked token for a given staking token. This factors in the last time
      * any internal logic was called on this contract to correctly attribute retroactive cumulative rewards.
-     * @dev the value returned is represented by a uint256 with fixed precision of 18 decimals.
+     * @dev This method should only be called by this contract and should actually be marked internal, but it
+     * was originally audited and deployed with this function being public. Its useful for testing if this function is
+     * public but it can return nonsensical values if the stakedToken precision is fewer than 18 decimals.
+     * @dev the value returned is represented by a uint256 with fixed precision of (18 + 18 - X) decimals, where
+     * X = decimals of the stakedToken. This is becauseof how the return value is divided by `cumulativeStaked`
+     * which has the same precisionas stakedToken.
      * @param stakedToken The address of the staked token to query.
      * @return uint256 Total base reward per token that will be applied, pro-rata, to stakers.
      */
