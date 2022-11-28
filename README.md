@@ -6,6 +6,8 @@ The core logic of the contract enables stakers to lock up enabled LP tokens to e
 
 The contract is designed to hold multiple LP tokens with independent parameterization for each liquidity mining. This is done to enable the depositor to take advantage of multicall when depositing, claiming rewards and unstaking (i.e you can stake multiple tokens at once).
 
+The Distributor and Token contracts were audited by [OpenZeppelin](https://blog.openzeppelin.com/across-token-and-token-distributor-audit/).
+
 ## Build
 
 ```shell
