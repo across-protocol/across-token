@@ -21,4 +21,9 @@ contract AcceleratingDistributorHarness is AcceleratingDistributor {
     function getBaseEmissionRatePerToken(address stakedToken) external view returns(uint256) {
         return stakingTokens[stakedToken].baseEmissionRate;
     }
+
+    function getUserStakedBalance(address stakedToken, address account) external view returns(uint256) {
+        UserDeposit storage deposit = stakingTokens[stakedToken].stakingBalances[account];
+        return deposit.cumulativeBalance;
+    }
 }

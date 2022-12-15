@@ -1,6 +1,6 @@
 import "erc20.spec"
 using AcrossToken as reward
-
+using ERC20A as erc20A
 /**************************************************
 *      Top Level Properties / Rule Ideas         *
 **************************************************/
@@ -11,6 +11,7 @@ using AcrossToken as reward
 **************************************************/
 methods {
     getCumulativeStaked(address) returns (uint256) envfree
+    getUserStakedBalance(address, address) returns (uint256) envfree
     tokenBalanceOf(address, address) returns(uint256) envfree
     getBaseEmissionRatePerToken(address) returns(uint256) envfree
     owner() returns(address) envfree
@@ -140,16 +141,36 @@ rule rewardsGivenOnlyByWithdrawReward_Fixed(method f, address stakedToken) {
 /**************************************************
 *              STAKING RULES                     *
 **************************************************/
+// Verified
 invariant cumulativeStakedEqualsSumOfStakes(address token)
     sumOfStakingBalances[token] == getCumulativeStaked(token)
     filtered{f -> !isMultiCall(f)}
 
+// Fails for `recoverToken()` function.
+invariant cumulativeStakedEqualsContractBalance(address token)
+    token != rewardToken() =>
+    getCumulativeStaked(token) == tokenBalanceOf(token, currentContract)
+    filtered{f -> !isMultiCall(f)}
+    {
+        // Everything inside a preserved block is required 
+        // for all methods before they are invoked.
+        preserved with (env e) {
+            require e.msg.sender != currentContract;
+        }
+    }
+
 // Rule in-progress
-rule exitCannotBeFrontRunned(address stakedToken) {
+rule exitCannotBeFrontRunned_Exit(address stakedToken) {
     env e1;
     env e2;
     require e1.msg.sender != e2.msg.sender;
     requireInvariant cumulativeStakedEqualsSumOfStakes(stakedToken);
+    require (getUserStakedBalance(stakedToken, e1.msg.sender) + 
+            getUserStakedBalance(stakedToken, e2.msg.sender) <= 
+            sumOfStakingBalances[stakedToken]);
+
+    require stakedToken == erc20A;
+    require e2.block.timestamp == e1.block.timestamp;
 
     // Initial state of the system before exit()
     storage initStorage = lastStorage;
@@ -157,8 +178,32 @@ rule exitCannotBeFrontRunned(address stakedToken) {
     // Some msg.sender can call exit (without reverting):
     exit(e2, stakedToken);
 
-    // Now we check that two consecuitve calls are possible:
+    // Now we check that two consecutive calls are possible:
     exit(e1, stakedToken) at initStorage;
+    exit@withrevert(e2, stakedToken);
+
+    assert !lastReverted;
+}
+
+// Rule in-progress
+rule exitCannotBeFrontRunned_RecoverToken(address stakedToken) {
+    env e1;
+    env e2;
+    requireInvariant cumulativeStakedEqualsSumOfStakes(stakedToken);
+    require getUserStakedBalance(stakedToken, e2.msg.sender) <=
+            sumOfStakingBalances[stakedToken];
+
+    require stakedToken == erc20A;
+    require e2.block.timestamp == e1.block.timestamp;
+
+    // Initial state of the system before exit()
+    storage initStorage = lastStorage;
+    
+    // Some msg.sender can call exit (without reverting):
+    exit(e2, stakedToken);
+
+    // We first call recoverToken and then check that exit doesn't revert.
+    recoverToken(e1, stakedToken) at initStorage;
     exit@withrevert(e2, stakedToken);
 
     assert !lastReverted;
