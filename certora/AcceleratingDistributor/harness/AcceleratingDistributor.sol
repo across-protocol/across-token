@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.0;
 
-import "../../contracts/AcceleratingDistributor.sol";
+import "../../../contracts/AcceleratingDistributor.sol";
 
 contract AcceleratingDistributorHarness is AcceleratingDistributor {
     

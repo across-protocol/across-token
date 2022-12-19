@@ -159,7 +159,7 @@ invariant cumulativeStakedEqualsContractBalance(address token)
         }
     }
 
-// Rule in-progress
+// Rule in-progress [TIMEOUT]
 rule exitCannotBeFrontRunned_Exit(address stakedToken) {
     env e1;
     env e2;
@@ -185,7 +185,7 @@ rule exitCannotBeFrontRunned_Exit(address stakedToken) {
     assert !lastReverted;
 }
 
-// Rule in-progress
+// Rule in-progress [TIMEOUT]
 rule exitCannotBeFrontRunned_RecoverToken(address stakedToken) {
     env e1;
     env e2;

@@ -1,10 +1,10 @@
-certoraRun ./certora/harness/AcceleratingDistributor.sol:AcceleratingDistributorHarness \
-            ./certora/harness/ERC20A.sol \
+certoraRun ./certora/AcceleratingDistributor/harness/AcceleratingDistributor.sol:AcceleratingDistributorHarness \
+            ./certora/AcceleratingDistributor/harness/ERC20A.sol \
             ./contracts/test/TestToken.sol \
             ./contracts/AcrossToken.sol \
 \
 \
---verify AcceleratingDistributorHarness:./certora/specs/main.spec \
+--verify AcceleratingDistributorHarness:./certora/AcceleratingDistributor/specs/main.spec \
 \
 \
 --link AcceleratingDistributorHarness:rewardToken=AcrossToken \
@@ -13,7 +13,7 @@ certoraRun ./certora/harness/AcceleratingDistributor.sol:AcceleratingDistributor
 --packages @openzeppelin=node_modules/@openzeppelin \
 --solc solc8.16 \
 --send_only \
---staging \
+--cloud \
 --settings -mediumTimeout=150 \
 --loop_iter 2 \
 --optimistic_loop \
