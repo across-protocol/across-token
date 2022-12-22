@@ -14,8 +14,8 @@ certoraRun ./certora/AcceleratingDistributor/harness/AcceleratingDistributor.sol
 --solc solc8.16 \
 --send_only \
 --cloud \
---settings -mediumTimeout=150 \
+--settings -mediumTimeout=150,-depth=15 \
 --loop_iter 2 \
 --optimistic_loop \
---rule exitCannotBeFrontRunned_RecoverToken \
---msg "UMA : Accelerating Distributor - exitCannotBeFrontRunned_RecoverToken" 
+--rule sanity \
+--msg "UMA : AccDist " 

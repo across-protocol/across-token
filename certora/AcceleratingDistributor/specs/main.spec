@@ -12,10 +12,22 @@ using ERC20A as erc20A
 methods {
     getCumulativeStaked(address) returns (uint256) envfree
     getUserStakedBalance(address, address) returns (uint256) envfree
+    getUserRewardsAccumulated(address, address) returns(uint256) envfree
     tokenBalanceOf(address, address) returns(uint256) envfree
     getBaseEmissionRatePerToken(address) returns(uint256) envfree
     owner() returns(address) envfree
     rewardToken() returns(address) envfree
+    getRewardPerTokenStored(address) returns(uint256) envfree
+    getLastUpdateTimePerToken(address) returns(uint256) envfree
+    
+    // When the return value of a function is a struct, we roll down its components types and gather them,
+    // by order, in parentheses.
+    // Note: The return type declaration is optional in CVL.
+    getUserStake(address, address) returns ((uint256,uint256,uint256,uint256)) envfree
+
+    // harness internal functions
+    _getFractionOfMaxMultiplier(uint256 t, address) returns (uint256) => ghostMultiplier(t);
+    //_mulDiv(uint256, uint256, uint256) returns (uint256) => to be summarized in the future.
 }
 
 /**************************************************
@@ -24,6 +36,9 @@ methods {
 // Selector of the 'multiCall' method
 definition isMultiCall(method f) returns bool = (f.selector == multicall(bytes[]).selector);
 
+// Selector of the 'updateReward' method
+definition isUpdateReward(method f) returns bool = (f.selector == updateReward(address, address).selector);
+
 // Selector of methods that call 'withdrawReward'
 definition withdrawRewardMethod(method f) returns bool = 
     f.selector == withdrawReward(address).selector || f.selector == exit(address).selector;
@@ -31,6 +46,8 @@ definition withdrawRewardMethod(method f) returns bool =
 /**************************************************
 *                 Ghosts & Hooks                 *
 **************************************************/
+ghost ghostMultiplier(uint256) returns uint256;
+
 // Tracks the sum of staking balances for all users, per token.
 ghost mapping(address => mathint) sumOfStakingBalances {
     init_state axiom forall address token. sumOfStakingBalances[token] == 0;
@@ -121,6 +138,7 @@ rule rewardsGivenOnlyByWithdrawReward_Fixed(method f, address stakedToken) {
     calldataarg args;
     address user;
     require user != currentContract;
+    // Guranteed by the configuration function.
     require stakedToken != rewardToken();
 
     uint256 rewardBalanceUserBefore = tokenBalanceOf(rewardToken(), user);
@@ -137,6 +155,87 @@ rule rewardsGivenOnlyByWithdrawReward_Fixed(method f, address stakedToken) {
         => user == e.msg.sender;
 }
 
+rule updateRewardsSecondTimeIsNeutral(address stakedToken, address account1, address account2) {
+    env e;
+
+    uint256 balance1; uint256 avgDepTime1; uint256 rewAccum1; uint256 rewOut1;
+    uint256 balance2; uint256 avgDepTime2; uint256 rewAccum2; uint256 rewOut2;
+    uint256 lastUpdate1; uint256 rewStored1;
+    uint256 lastUpdate2; uint256 rewStored2;
+
+    updateReward(e, stakedToken, account1);
+    balance1, avgDepTime1, rewAccum1, rewOut1 = getUserStake(stakedToken, account1);
+    lastUpdate1 = getLastUpdateTimePerToken(stakedToken);
+    rewStored1 = getRewardPerTokenStored(stakedToken);
+   
+    updateReward(e, stakedToken, account2);
+    balance2, avgDepTime2, rewAccum2, rewOut2 = getUserStake(stakedToken, account2);
+    lastUpdate2 = getLastUpdateTimePerToken(stakedToken);
+    rewStored2 = getRewardPerTokenStored(stakedToken);
+
+    if(account1 == account2) {
+        assert balance1 == balance2 , "Second immediate call changed balance";
+        assert avgDepTime1 == avgDepTime2, "Second immediate call changed average deposit time";
+        assert rewAccum1 == rewAccum2, "Second immediate call changed accumulated rewards";
+        assert rewOut1 == rewOut2, "Second immediate call changed outstanding rewards";
+    }
+
+    assert lastUpdate1 == lastUpdate2, "Second immediate call changed last update time";
+    assert rewStored1 == rewStored2, "Second immediate call changed stored rewards";
+}
+
+// Advanced version of the previous rule
+rule whichFunctionsAffectUpdateRewardsOutcome(method f, address stakedToken) 
+filtered{f -> !f.isView && !isMultiCall(f) && !isUpdateReward(f)} {
+    env e;
+    calldataarg args;
+    address account1;
+    address account2;
+
+    uint256 balance1; uint256 avgDepTime1; uint256 rewAccum1; uint256 rewOut1;
+    uint256 balance2; uint256 avgDepTime2; uint256 rewAccum2; uint256 rewOut2;
+    uint256 lastUpdate1; uint256 rewStored1;
+    uint256 lastUpdate2; uint256 rewStored2;
+
+    // 1 : Calling updateReward 
+    updateReward(e, stakedToken, account1);
+    balance1, avgDepTime1, rewAccum1, rewOut1 = getUserStake(stakedToken, account1);
+    lastUpdate1 = getLastUpdateTimePerToken(stakedToken);
+    rewStored1 = getRewardPerTokenStored(stakedToken);
+
+    // 2: Calling any non-view method AT THE SAME BLOCK
+    f(e, args);
+   
+    // 3: Calling updateReward again AT THE SAME BLOCK
+    updateReward(e, stakedToken, account2);
+    balance2, avgDepTime2, rewAccum2, rewOut2 = getUserStake(stakedToken, account2);
+    lastUpdate2 = getLastUpdateTimePerToken(stakedToken);
+    rewStored2 = getRewardPerTokenStored(stakedToken);
+
+    // 4: Asserting neutrality of the rewards parameters
+    if(account1 == account2) {
+        assert balance1 == balance2, "Intermediate call to ${f} changed balance";
+        assert avgDepTime1 == avgDepTime2, "Intermediate call to ${f} changed average deposit time";
+        assert rewAccum1 == rewAccum2, "Intermediate call to ${f} changed accumulated rewards";
+        assert rewOut1 == rewOut2, "Intermediate call to ${f} changed outstanding rewards";
+    }
+
+    assert lastUpdate1 == lastUpdate2, "Intermediate call to ${f} changed last update time";
+    assert rewStored1 == rewStored2, "Intermediate call to ${f} changed stored rewards";   
+}
+
+// Necessary to guarantee so that the calculation of getOutstandingRewards()
+// doesn't revert on underflow.
+//
+// Fails for : configureStakingToken()
+invariant baseRewardNeverLessThanAccumulatedRewards(env e, address stakedToken, address account)
+    baseRewardPerToken(e, stakedToken) >= getUserRewardsAccumulated(stakedToken, account)
+    filtered{f -> !isMultiCall(f)} 
+    {
+        preserved with (env ep) {
+            require ep.block.timestamp == e.block.timestamp;
+        }
+    }
 
 /**************************************************
 *              STAKING RULES                     *
@@ -160,7 +259,7 @@ invariant cumulativeStakedEqualsContractBalance(address token)
     }
 
 // Rule in-progress [TIMEOUT]
-rule exitCannotBeFrontRunned_Exit(address stakedToken) {
+rule exitCannotBeFrontRunnedByExit(address stakedToken) {
     env e1;
     env e2;
     require e1.msg.sender != e2.msg.sender;
@@ -169,8 +268,8 @@ rule exitCannotBeFrontRunned_Exit(address stakedToken) {
             getUserStakedBalance(stakedToken, e2.msg.sender) <= 
             sumOfStakingBalances[stakedToken]);
 
+    // A single instance is enough (symbolic)
     require stakedToken == erc20A;
-    require e2.block.timestamp == e1.block.timestamp;
 
     // Initial state of the system before exit()
     storage initStorage = lastStorage;
@@ -180,21 +279,28 @@ rule exitCannotBeFrontRunned_Exit(address stakedToken) {
 
     // Now we check that two consecutive calls are possible:
     exit(e1, stakedToken) at initStorage;
+
+    // Prevent overflow.
+    require currentContract != e2.msg.sender => 
+        tokenBalanceOf(stakedToken, e2.msg.sender) +  
+        tokenBalanceOf(stakedToken, currentContract) <=
+        max_uint;
+
     exit@withrevert(e2, stakedToken);
 
     assert !lastReverted;
 }
 
 // Rule in-progress [TIMEOUT]
-rule exitCannotBeFrontRunned_RecoverToken(address stakedToken) {
+rule exitCannotBeFrontRunnedByRecoverToken(address stakedToken) {
     env e1;
     env e2;
     requireInvariant cumulativeStakedEqualsSumOfStakes(stakedToken);
     require getUserStakedBalance(stakedToken, e2.msg.sender) <=
             sumOfStakingBalances[stakedToken];
 
+    // A single instance is enough (symbolic)
     require stakedToken == erc20A;
-    require e2.block.timestamp == e1.block.timestamp;
 
     // Initial state of the system before exit()
     storage initStorage = lastStorage;
@@ -204,8 +310,15 @@ rule exitCannotBeFrontRunned_RecoverToken(address stakedToken) {
 
     // We first call recoverToken and then check that exit doesn't revert.
     recoverToken(e1, stakedToken) at initStorage;
-    exit@withrevert(e2, stakedToken);
 
+    // Prevent overflow.
+    require currentContract != e2.msg.sender => 
+        tokenBalanceOf(stakedToken, e2.msg.sender) +  
+        tokenBalanceOf(stakedToken, currentContract) <=
+        max_uint;
+
+    exit@withrevert(e2, stakedToken);
+    
     assert !lastReverted;
 }
 
