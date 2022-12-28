@@ -127,9 +127,9 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         // benefit to removing this additional flexibility. If set < 1e18, then user's rewards outstanding will
         // decrease over time. Incentives for stakers would look different if `maxMultiplier` were set < 1e18
         require(stakedToken != address(rewardToken), "Staked token is reward token");
-        require(maxMultiplier < 1e36, "maxMultiplier can not be set too large");
-        require(secondsToMaxMultiplier > 0, "secondsToMaxMultiplier must be greater than 0");
-        require(baseEmissionRate < 1e27, "baseEmissionRate can not be set too large");
+        require(maxMultiplier <= 10e18, "maxMultiplier too large"); // 1000% realistic upper bound.
+        require(secondsToMaxMultiplier > 0, "secondsToMaxMultiplier <= 0");
+        require(baseEmissionRate <= 1e24, "baseEmissionRate too large"); // 1 million ACX per second.
 
         StakingToken storage stakingToken = stakingTokens[stakedToken];
 
