@@ -99,13 +99,13 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         _;
     }
 
-    constructor(address _rewardToken) {
-        rewardToken = IERC20(_rewardToken);
-    }
-
     /**************************************
      *          ADMIN FUNCTIONS           *
      **************************************/
+
+    constructor(address _rewardToken) {
+        rewardToken = IERC20(_rewardToken);
+    }
 
     /**
      * @notice Enable a token for staking.
