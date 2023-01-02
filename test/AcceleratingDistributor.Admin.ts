@@ -122,9 +122,11 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
         secondsToMaxMultiplier
       )
     ).to.be.revertedWith("maxMultiplier can not be set too large");
+
     await expect(
       distributor.configureStakingToken(lpToken1.address, true, baseEmissionRate, maxMultiplier, 0)
     ).to.be.revertedWith("secondsToMaxMultiplier must be greater than 0");
+
     await expect(
       distributor.configureStakingToken(
         lpToken1.address,
@@ -134,6 +136,20 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
         secondsToMaxMultiplier
       )
     ).to.be.revertedWith("baseEmissionRate can not be set too large");
+
+    await expect(
+      distributor.configureStakingToken(lpToken1.address, true, baseEmissionRate, toWei(1), secondsToMaxMultiplier)
+    ).to.not.be.reverted;
+
+    await expect(
+      distributor.configureStakingToken(
+        lpToken1.address,
+        true,
+        baseEmissionRate,
+        toWei(".999999999999999999"),
+        secondsToMaxMultiplier
+      )
+    ).to.be.revertedWith("maxMultiplier less than 1e18");
   });
 
   it("Non owner cant execute admin functions", async function () {
