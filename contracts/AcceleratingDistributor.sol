@@ -56,10 +56,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         rewardToken = IERC20(_rewardToken);
     }
 
-    function getCurrentTime() public view virtual returns (uint256) {
-        return block.timestamp; // solhint-disable-line not-rely-on-time
-    }
-
     /**************************************
      *               EVENTS               *
      **************************************/
@@ -269,6 +265,10 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**************************************
      *           VIEW FUNCTIONS           *
      **************************************/
+
+    function getCurrentTime() public view virtual returns (uint256) {
+        return block.timestamp; // solhint-disable-line not-rely-on-time
+    }
 
     /**
      * @notice Returns the total staked for a given stakedToken.
