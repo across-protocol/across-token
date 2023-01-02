@@ -38,24 +38,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         mapping(address => UserDeposit) stakingBalances;
     }
 
-    IERC20 public immutable rewardToken;
-
-    mapping(address => StakingToken) public stakingTokens;
-
-    modifier onlyEnabled(address stakedToken) {
-        require(stakingTokens[stakedToken].enabled, "stakedToken not enabled");
-        _;
-    }
-
-    modifier onlyInitialized(address stakedToken) {
-        require(stakingTokens[stakedToken].lastUpdateTime != 0, "stakedToken not initialized");
-        _;
-    }
-
-    constructor(address _rewardToken) {
-        rewardToken = IERC20(_rewardToken);
-    }
-
     /**************************************
      *               EVENTS               *
      **************************************/
@@ -94,6 +76,32 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 userRewardsPaidPerToken
     );
     event Exit(address indexed token, address indexed user, uint256 tokenCumulativeStaked);
+
+    /**************************************
+     *           STATE VARIABLES          *
+     **************************************/
+
+    IERC20 public immutable rewardToken;
+
+    mapping(address => StakingToken) public stakingTokens;
+
+    /**************************************
+     *              MODIFIERS             *
+     **************************************/
+
+    modifier onlyEnabled(address stakedToken) {
+        require(stakingTokens[stakedToken].enabled, "stakedToken not enabled");
+        _;
+    }
+
+    modifier onlyInitialized(address stakedToken) {
+        require(stakingTokens[stakedToken].lastUpdateTime != 0, "stakedToken not initialized");
+        _;
+    }
+
+    constructor(address _rewardToken) {
+        rewardToken = IERC20(_rewardToken);
+    }
 
     /**************************************
      *          ADMIN FUNCTIONS           *
