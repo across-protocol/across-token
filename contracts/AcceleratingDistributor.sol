@@ -162,8 +162,8 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     function recoverToken(address token) external onlyOwner {
         // If the token is an enabled staking token then we want to preform a skim action where we send back any extra
         // tokens that are not accounted for in the cumulativeStaked variable. This lets the owner recover extra tokens
-        // sent to the contract that were not explicitly staked. if the token is not enabled for staking then we simply
-        // send back the full amount of tokens that the contract has.
+        // sent to the contract that were not explicitly staked. If the token has not been initialized for staking then
+        // we simply send back the full amount of tokens that the contract has.
         uint256 amount = IERC20(token).balanceOf(address(this));
         if (stakingTokens[token].lastUpdateTime != 0) amount -= stakingTokens[token].cumulativeStaked;
         require(amount > 0, "Can't recover 0 tokens");
