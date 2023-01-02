@@ -143,8 +143,13 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
   });
 
   it("Permissioning on staking-related methods", async function () {
-    await expect(distributor.connect(owner).stake(lpToken1.address, 0)).to.be.revertedWith("stakedToken not enabled");
-    await expect(distributor.connect(owner).unstake(lpToken1.address, 0)).to.be.revertedWith(
+    await lpToken1.mint(owner.address, toWei(69));
+    await lpToken1.connect(owner).approve(distributor.address, toWei(69));
+
+    await expect(distributor.connect(owner).stake(lpToken1.address, toWei(1))).to.be.revertedWith(
+      "stakedToken not enabled"
+    );
+    await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(1))).to.be.revertedWith(
       "stakedToken not initialized"
     );
     await expect(distributor.connect(owner).withdrawReward(lpToken1.address)).to.be.revertedWith(
@@ -160,11 +165,13 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
       secondsToMaxMultiplier
     );
 
-    await expect(distributor.connect(owner).stake(lpToken1.address, 0)).to.not.be.reverted;
-    await expect(distributor.connect(owner).unstake(lpToken1.address, 0)).to.not.be.reverted;
+    await expect(distributor.connect(owner).stake(lpToken1.address, toWei(2))).to.not.be.reverted;
+    await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(1))).to.not.be.reverted;
     await expect(distributor.connect(owner).withdrawReward(lpToken1.address)).to.not.be.reverted;
     await expect(distributor.connect(owner).exit(lpToken1.address)).to.not.be.reverted;
 
+    // Balance => non-zero before disabling, to verify that unstake/withdraw/exit is still possible.
+    await expect(distributor.connect(owner).stake(lpToken1.address, toWei(2))).to.not.be.reverted;
     await distributor.configureStakingToken(
       lpToken1.address,
       false,
@@ -173,8 +180,10 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
       secondsToMaxMultiplier
     );
 
-    await expect(distributor.connect(owner).stake(lpToken1.address, 0)).to.be.revertedWith("stakedToken not enabled");
-    await expect(distributor.connect(owner).unstake(lpToken1.address, 0)).to.not.be.reverted;
+    await expect(distributor.connect(owner).stake(lpToken1.address, toWei(1))).to.be.revertedWith(
+      "stakedToken not enabled"
+    );
+    await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(1))).to.not.be.reverted;
     await expect(distributor.connect(owner).withdrawReward(lpToken1.address)).to.not.be.reverted;
     await expect(distributor.connect(owner).exit(lpToken1.address)).to.not.be.reverted;
   });
