@@ -19,8 +19,6 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable rewardToken;
-
     // Each User deposit is tracked with the information below.
     struct UserDeposit {
         uint256 cumulativeBalance;
@@ -39,6 +37,8 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 lastUpdateTime;
         mapping(address => UserDeposit) stakingBalances;
     }
+
+    IERC20 public immutable rewardToken;
 
     mapping(address => StakingToken) public stakingTokens;
 
