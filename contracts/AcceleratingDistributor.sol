@@ -119,7 +119,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 maxMultiplier,
         uint256 secondsToMaxMultiplier
     ) external onlyOwner {
-        // Validate input to ensure system stability and avoid unexpected behavior. Note we dont place a lower bound on
+        // Validate input to ensure system stability and avoid unexpected behavior. Note we don't place a lower bound on
         // the baseEmissionRate. If this value is less than 1e18 then you will slowly loose your staking rewards over time.
         // Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
         // payouts could eat into user balances. We choose not to constrain `maxMultiplier` to be > 1e18 so that
@@ -155,8 +155,8 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**
      * @notice Enables the owner to recover tokens dropped onto the contract. This could be used to remove unclaimed
      * staking rewards or recover excess LP tokens that were inadvertently dropped onto the contract. Importantly, the
-     * contract will only let the owner recover staked excess tokens above what the contract thinks it should have. i.e
-     * the owner cant use this method to steal staked tokens, only recover excess ones mistakenly sent to the contract.
+     * contract will only let the owner recover staked excess tokens above what the contract thinks it should have, i.e
+     * the owner can't use this method to steal staked tokens, only recover excess ones mistakenly sent to the contract.
      * @param token The address of the token to skim.
      */
     function recoverToken(address token) external onlyOwner {
@@ -211,7 +211,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         _updateReward(stakedToken, msg.sender);
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
-        // Note: these will revert if underflow so you cant unstake more than your cumulativeBalance.
+        // Note: these will revert if underflow so you can't unstake more than your cumulativeBalance.
         userDeposit.cumulativeBalance -= amount;
         stakingTokens[stakedToken].cumulativeStaked -= amount;
 
@@ -314,7 +314,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**
      * @notice Returns the multiplier applied to the base reward per staked token for a given staking token and account.
      * The longer a user stakes the higher their multiplier up to maxMultiplier for that given staking token.
-     * any internal logic was called on this contract to correctly attribute retroactive cumulative rewards.
      * @dev the value returned is represented by a uint256 with fixed precision of 18 decimals.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
@@ -333,7 +332,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
 
     /**
      * @notice Returns the total outstanding rewards entitled to a user for a given staking token. This factors in the
-     * users staking duration (and therefore reward multiplier) and their pro-rata share of the total rewards.
+     * user's staking duration (and therefore reward multiplier) and their pro-rata share of the total rewards.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
      * @return uint256 Total outstanding rewards entitled to user.
@@ -351,17 +350,17 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     }
 
     /**
-     * @notice Returns the time that has elapsed between the current time and the last users average deposit time.
+     * @notice Returns the time that has elapsed between the current time and the last user's average deposit time.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
-     *@return uint256 Time, in seconds, between the users average deposit time and the current time.
+     * @return uint256 Time, in seconds, between the user's average deposit time and the current time.
      */
     function getTimeSinceAverageDeposit(address stakedToken, address account) public view returns (uint256) {
         return getCurrentTime() - stakingTokens[stakedToken].stakingBalances[account].averageDepositTime;
     }
 
     /**
-     * @notice Returns a users new average deposit time, considering the addition of a new deposit. This factors in the
+     * @notice Returns a user's new average deposit time, considering the addition of a new deposit. This factors in the
      * cumulative previous deposits, new deposit and time from the last deposit.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
