@@ -118,7 +118,7 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
         lpToken1.address,
         true,
         baseEmissionRate,
-        toWei(toWei(1)),
+        toWei(10000000),
         secondsToMaxMultiplier
       )
     ).to.be.revertedWith("maxMultiplier too large");
