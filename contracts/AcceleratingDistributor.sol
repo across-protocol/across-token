@@ -129,7 +129,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         require(stakedToken != address(rewardToken), "Staked token is reward token");
         require(maxMultiplier <= 1e24, "maxMultiplier too large"); // 1_000_000x multiplier.
         require(secondsToMaxMultiplier > 0, "secondsToMaxMultiplier <= 0");
-        require(baseEmissionRate <= 1e24, "baseEmissionRate too large"); // 1 million ACX per second.
+        require(baseEmissionRate <= 1e24, "baseEmissionRate too large"); // 1 million tokens per second.
 
         StakingToken storage stakingToken = stakingTokens[stakedToken];
 
