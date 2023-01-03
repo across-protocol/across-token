@@ -17,5 +17,4 @@ certoraRun ./certora/AcceleratingDistributor/harness/AcceleratingDistributor.sol
 --settings -mediumTimeout=150,-depth=15 \
 --loop_iter 2 \
 --optimistic_loop \
---rule sanity \
---msg "UMA : AccDist " 
+--msg "UMA : Accelerating Distributor" 

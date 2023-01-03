@@ -5,13 +5,12 @@ using ERC20A as erc20A
 *      Top Level Properties / Rule Ideas         *
 **************************************************/
 
-
 /**************************************************
 *                  Methods                       *
 **************************************************/
 methods {
     getCumulativeStaked(address) returns (uint256) envfree
-    getUserStakedBalance(address, address) returns (uint256) envfree
+    getUserCumulativeBalance(address, address) returns (uint256) envfree
     getUserRewardsAccumulated(address, address) returns(uint256) envfree
     tokenBalanceOf(address, address) returns(uint256) envfree
     getBaseEmissionRatePerToken(address) returns(uint256) envfree
@@ -19,6 +18,8 @@ methods {
     rewardToken() returns(address) envfree
     getRewardPerTokenStored(address) returns(uint256) envfree
     getLastUpdateTimePerToken(address) returns(uint256) envfree
+    getUserAvgDepositTimePerToken(address, address) returns(uint256) envfree
+    getUserRewardMultiplier(address, address) returns (uint256)
     
     // When the return value of a function is a struct, we roll down its components types and gather them,
     // by order, in parentheses.
@@ -26,15 +27,18 @@ methods {
     getUserStake(address, address) returns ((uint256,uint256,uint256,uint256)) envfree
 
     // harness internal functions
-    _getFractionOfMaxMultiplier(uint256 t, address) returns (uint256) => ghostMultiplier(t);
-    //_mulDiv(uint256, uint256, uint256) returns (uint256) => to be summarized in the future.
+    _userMultiplier(uint256 frac, uint256 maxMultiplier) returns (uint256) => ghostUserMultiplier(frac, maxMultiplier);
+    //_mulDiv(uint256 x, uint256 y ,uint256 z) returns (uint256) => summaryMulDiv(x,y,z) // to be summarized in the future.
 }
 
 /**************************************************
 *                 CVL Definitions                *
 **************************************************/
 // Selector of the 'multiCall' method
-definition isMultiCall(method f) returns bool = (f.selector == multicall(bytes[]).selector);
+// UPDATE:
+// Currently set to false since we have removed the MultiCaller interface from the main contract.
+// Once we restore this multicall function, we'll replace it with the old definition.
+definition isMultiCall(method f) returns bool = false;// (f.selector == multicall(bytes[]).selector);
 
 // Selector of the 'updateReward' method
 definition isUpdateReward(method f) returns bool = (f.selector == updateReward(address, address).selector);
@@ -46,7 +50,7 @@ definition withdrawRewardMethod(method f) returns bool =
 /**************************************************
 *                 Ghosts & Hooks                 *
 **************************************************/
-ghost ghostMultiplier(uint256) returns uint256;
+ghost mapping(uint256 => mapping(uint256 => uint256)) _ghostMultiplier;
 
 // Tracks the sum of staking balances for all users, per token.
 ghost mapping(address => mathint) sumOfStakingBalances {
@@ -87,6 +91,26 @@ rule viewFuncsDontRevert(method f) filtered {f -> f.isView} {
     calldataarg args;
     f@withrevert(e, args);
     assert !lastReverted;
+}
+
+rule maxMultiplierUnder10_18Reverts(address stakedToken, address account) {
+    env e1;
+    env e2;
+    bool enabled;
+    uint256 baseEmissionRate;
+    uint256 secondsToMaxMultiplier;
+    uint256 maxMultiplier;
+
+    require getUserAvgDepositTimePerToken(stakedToken, account) !=0;
+    require getUserCumulativeBalance(stakedToken, account) !=0;
+    require maxMultiplier < 10^18;
+
+    configureStakingToken(e1, stakedToken, enabled, baseEmissionRate,
+        maxMultiplier, secondsToMaxMultiplier);
+
+    getUserRewardMultiplier@withrevert(e2, stakedToken, account);
+
+    assert lastReverted;
 }
 
 /**************************************************
@@ -185,6 +209,7 @@ rule updateRewardsSecondTimeIsNeutral(address stakedToken, address account1, add
 }
 
 // Advanced version of the previous rule
+// https://prover.certora.com/output/41958/9ac1bdb27b8e5389f849/?anonymousKey=b24a36b00fab1a4c898fe9d65e79d19c835f14e4
 rule whichFunctionsAffectUpdateRewardsOutcome(method f, address stakedToken) 
 filtered{f -> !f.isView && !isMultiCall(f) && !isUpdateReward(f)} {
     env e;
@@ -264,8 +289,8 @@ rule exitCannotBeFrontRunnedByExit(address stakedToken) {
     env e2;
     require e1.msg.sender != e2.msg.sender;
     requireInvariant cumulativeStakedEqualsSumOfStakes(stakedToken);
-    require (getUserStakedBalance(stakedToken, e1.msg.sender) + 
-            getUserStakedBalance(stakedToken, e2.msg.sender) <= 
+    require (getUserCumulativeBalance(stakedToken, e1.msg.sender) + 
+            getUserCumulativeBalance(stakedToken, e2.msg.sender) <= 
             sumOfStakingBalances[stakedToken]);
 
     // A single instance is enough (symbolic)
@@ -296,7 +321,7 @@ rule exitCannotBeFrontRunnedByRecoverToken(address stakedToken) {
     env e1;
     env e2;
     requireInvariant cumulativeStakedEqualsSumOfStakes(stakedToken);
-    require getUserStakedBalance(stakedToken, e2.msg.sender) <=
+    require getUserCumulativeBalance(stakedToken, e2.msg.sender) <=
             sumOfStakingBalances[stakedToken];
 
     // A single instance is enough (symbolic)
@@ -322,6 +347,21 @@ rule exitCannotBeFrontRunnedByRecoverToken(address stakedToken) {
     assert !lastReverted;
 }
 
+rule exitDoesntUnderFlow(address stakedToken) {
+    env e1; env e2;
+    storage initStorage = lastStorage;
+    require e1.msg.sender != e2.msg.sender;
+    require e1.block.timestamp > 0;
+    require e2.block.timestamp >= e1.block.timestamp;
+    require stakedToken == erc20A;
+
+    exit(e2, stakedToken);
+
+    updateReward(e1, stakedToken, e1.msg.sender) at initStorage;
+    exit@withrevert(e2, stakedToken);
+
+    assert !lastReverted;
+}
 
 /**************************************************
 *              CVL HELPER FUNCS                   *
@@ -353,4 +393,22 @@ function specifyTokenAddressInMethod(env e, method f, address token) {
     else { // "default"
         f(e, args);
     }
-}  
+}
+
+// Over approximation of the getUserRewardMultiplier function. Instead of computing:
+// 1e18 + (fractionOfMaxMultiplier * (stakingTokens[stakedToken].maxMultiplier - 1e18)) / (1e18);
+// It returns any number between 1e18 and the maxMultiplier.
+function ghostUserMultiplier(uint256 fraction, uint256 maxMultiplier) returns uint256 {
+    require 10^18 <= maxMultiplier && maxMultiplier < 10^36;
+    require 10^18 <= _ghostMultiplier[fraction][maxMultiplier] && 
+        _ghostMultiplier[fraction][maxMultiplier] <= maxMultiplier;
+    return _ghostMultiplier[fraction][maxMultiplier];
+}
+
+function summaryMulDiv(uint256 x, uint256 y ,uint256 z) returns uint256 {
+    uint256 f;
+    require z!=0;
+    require (x/z == 2 && f == 2*y) || (y/z == 2 && f == 2*x)
+    || (z/x == 2 && f == y/2) || (z/y == 2 && f == x/2);
+    return f;
+}

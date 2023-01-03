@@ -27,7 +27,7 @@ contract AcceleratingDistributorHarness is AcceleratingDistributor {
         return stakingTokens[stakedToken].baseEmissionRate;
     }
 
-    function getUserStakedBalance(address stakedToken, address account) external view returns(uint256) {
+    function getUserCumulativeBalance(address stakedToken, address account) external view returns(uint256) {
         UserDeposit storage deposit = stakingTokens[stakedToken].stakingBalances[account];
         return deposit.cumulativeBalance;
     }
@@ -43,6 +43,11 @@ contract AcceleratingDistributorHarness is AcceleratingDistributor {
 
     function getLastUpdateTimePerToken(address stakedToken) external view returns (uint256) { 
         return stakingTokens[stakedToken].lastUpdateTime;
+    }
+
+    function getUserAvgDepositTimePerToken(address stakedToken, address account) external view returns (uint256) { 
+        UserDeposit storage deposit = stakingTokens[stakedToken].stakingBalances[account];
+        return deposit.averageDepositTime;
     }
 
     /** 
@@ -76,7 +81,11 @@ contract AcceleratingDistributorHarness is AcceleratingDistributor {
 
         // At maximum, the multiplier should be equal to the maxMultiplier.
         if (fractionOfMaxMultiplier > 1e18) fractionOfMaxMultiplier = 1e18;
-        return 1e18 + (fractionOfMaxMultiplier * (stakingTokens[stakedToken].maxMultiplier - 1e18)) / (1e18);
+        return _userMultiplier(fractionOfMaxMultiplier, stakingTokens[stakedToken].maxMultiplier);
+    }
+
+    function _userMultiplier(uint256 fraction, uint256 maxMultiplier) internal pure returns (uint256) {
+        return 1e18 + (fraction * (maxMultiplier - 1e18)) / (1e18);
     }
 
     function _getFractionOfMaxMultiplier(uint256 time, address stakedToken) internal view returns(uint256) {

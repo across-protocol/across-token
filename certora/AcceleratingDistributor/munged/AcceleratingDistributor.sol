@@ -15,8 +15,8 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
  * only compatible with standard ERC20 tokens, and not tokens that charge fees on transfers, dynamically change
  * balance, or have double entry-points. It's up to the contract owner to ensure they only add supported tokens.
  */
-
-contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
+// Certora: remove MultiCaller inheritance due to technical issues.
+contract AcceleratingDistributor is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable rewardToken;

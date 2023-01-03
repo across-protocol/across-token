@@ -1,5 +1,16 @@
 --- ../../contracts/AcceleratingDistributor.sol	2022-12-21 11:05:45.930780900 +0200
-+++ 	2022-12-21 11:10:34.913542100 +0200
++++ 	2023-01-03 10:32:05.107472900 +0200
+@@ -15,8 +15,8 @@
+  * only compatible with standard ERC20 tokens, and not tokens that charge fees on transfers, dynamically change
+  * balance, or have double entry-points. It's up to the contract owner to ensure they only add supported tokens.
+  */
+-
+-contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
++// Certora: remove MultiCaller inheritance due to technical issues.
++contract AcceleratingDistributor is ReentrancyGuard, Ownable {
+     using SafeERC20 for IERC20;
+ 
+     IERC20 public immutable rewardToken;
 @@ -296,12 +296,12 @@
       * was originally audited and deployed with this function being public. Its useful for testing if this function is
       * public but it can return nonsensical values if the stakedToken precision is fewer than 18 decimals.
