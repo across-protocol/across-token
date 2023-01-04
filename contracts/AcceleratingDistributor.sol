@@ -123,7 +123,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 rewardsToSend,
         uint256 tokenLastUpdateTime,
         uint256 tokenRewardPerTokenStored,
-        uint256 userRewardsOutstanding,
         uint256 userRewardsPaidPerToken
     );
     event Exit(address indexed token, address indexed user, uint256 tokenCumulativeStaked);
@@ -284,7 +283,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
             rewardsToSend,
             stakingTokens[stakedToken].lastUpdateTime,
             stakingTokens[stakedToken].rewardPerTokenStored,
-            userDeposit.rewardsOutstanding,
             userDeposit.rewardsAccumulatedPerToken
         );
     }
