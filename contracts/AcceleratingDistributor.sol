@@ -211,7 +211,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         _updateReward(stakedToken, msg.sender);
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
-        // Note: these will revert if underflow so you can't unstake more than your cumulativeBalance.
+        // Note: these will revert if underflow occurs, so you can't unstake more than your cumulativeBalance.
         userDeposit.cumulativeBalance -= amount;
         stakingTokens[stakedToken].cumulativeStaked -= amount;
 
