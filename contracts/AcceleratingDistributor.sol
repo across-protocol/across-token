@@ -313,7 +313,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
 
     /**
      * @notice Returns the multiplier applied to the base reward per staked token for a given staking token and account.
-     * The longer a user stakes the higher their multiplier up to maxMultiplier for that given staking token.
+     * The longer a user stakes, the higher their multiplier up to maxMultiplier for that given staking token.
      * @dev the value returned is represented by a uint256 with fixed precision of 18 decimals.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
