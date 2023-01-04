@@ -208,7 +208,7 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
         stakingEnabled ? "Invalid amount" : "stakedToken not enabled"
       );
       await expect(distributor.connect(owner).stakeFor(lpToken1.address, toWei(0), zeroAddress)).to.be.revertedWith(
-        stakingEnabled ? "Invalid amount" : "stakedToken not enabled"
+        stakingEnabled ? "Invalid beneficiary" : "stakedToken not enabled"
       );
       await expect(distributor.connect(owner).stakeFor(lpToken1.address, toWei(1), zeroAddress)).to.be.revertedWith(
         stakingEnabled ? "Invalid beneficiary" : "stakedToken not enabled"
