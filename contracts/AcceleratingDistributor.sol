@@ -149,13 +149,12 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 secondsToMaxMultiplier
     ) external onlyOwner {
         // Validate input to ensure system stability and avoid unexpected behavior. Note we dont place a lower bound on
-        // the baseEmissionRate. If this value is less than 1e18 then you will slowly loose your staking rewards over time.
-        // Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
-        // payouts could eat into user balances. We choose not to constrain `maxMultiplier` to be > 1e18 so that
-        // admin can choose to allow decreasing emissions over time. This is not the intended use case, but we see no
-        // benefit to removing this additional flexibility. If set < 1e18, then user's rewards outstanding will
-        // decrease over time. Incentives for stakers would look different if `maxMultiplier` were set < 1e18
+        // the baseEmissionRate. If this value is less than 1e18 then you will slowly lose your staking rewards over
+        // time. Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
+        // payouts could eat into user balances. maxMultiplier is constrained to be at least 1e18 to enforce a minimum
+        // 1x multiplier and avoid potential underflows.
         require(stakedToken != address(rewardToken), "Staked token is reward token");
+        require(maxMultiplier >= 1e18, "maxMultiplier less than 1e18");
         require(maxMultiplier < 1e36, "maxMultiplier can not be set too large");
         require(secondsToMaxMultiplier > 0, "secondsToMaxMultiplier must be greater than 0");
         require(baseEmissionRate < 1e27, "baseEmissionRate can not be set too large");
@@ -353,6 +352,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @notice Returns the multiplier applied to the base reward per staked token for a given staking token and account.
      * The longer a user stakes the higher their multiplier up to maxMultiplier for that given staking token.
      * any internal logic was called on this contract to correctly attribute retroactive cumulative rewards.
+     * @dev maxMultiplier has a floor of 1e18 to avoid potential underflow on reward multiplier calculations.
      * @dev the value returned is represented by a uint256 with fixed precision of 18 decimals.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
