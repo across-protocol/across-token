@@ -5,6 +5,8 @@ import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./const
 let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract;
 let owner: SignerWithAddress, rando: SignerWithAddress;
 
+const zeroAddress = ethers.constants.AddressZero;
+
 describe("AcceleratingDistributor: Admin Functions", async function () {
   beforeEach(async function () {
     [owner, rando] = await ethers.getSigners();
@@ -185,6 +187,71 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
     );
     await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(1))).to.not.be.reverted;
     await expect(distributor.connect(owner).withdrawReward(lpToken1.address)).to.not.be.reverted;
+    await expect(distributor.connect(owner).exit(lpToken1.address)).to.not.be.reverted;
+  });
+
+  it("Input validation on staking-related methods", async function () {
+    await lpToken1.mint(owner.address, toWei(69));
+    await lpToken1.connect(owner).approve(distributor.address, toWei(69));
+
+    // Modifiers take precedence when staking is disabled.
+    for (const stakingEnabled of [true, false]) {
+      await distributor.configureStakingToken(
+        lpToken1.address,
+        stakingEnabled,
+        baseEmissionRate,
+        maxMultiplier,
+        secondsToMaxMultiplier
+      );
+
+      await expect(distributor.connect(owner).stake(lpToken1.address, toWei(0))).to.be.revertedWith(
+        stakingEnabled ? "Invalid amount" : "stakedToken not enabled"
+      );
+      await expect(distributor.connect(owner).stakeFor(lpToken1.address, toWei(0), zeroAddress)).to.be.revertedWith(
+        stakingEnabled ? "Invalid beneficiary" : "stakedToken not enabled"
+      );
+      await expect(distributor.connect(owner).stakeFor(lpToken1.address, toWei(1), zeroAddress)).to.be.revertedWith(
+        stakingEnabled ? "Invalid beneficiary" : "stakedToken not enabled"
+      );
+
+      if (stakingEnabled) {
+        await expect(distributor.connect(owner).stake(lpToken1.address, toWei(1))).to.not.be.reverted;
+        await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(0))).to.be.revertedWith(
+          "Invalid amount"
+        );
+        await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(1))).to.not.be.reverted;
+      } else {
+        await expect(distributor.connect(owner).stake(lpToken1.address, toWei(1))).to.be.revertedWith(
+          "stakedToken not enabled"
+        );
+        await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(0))).to.be.revertedWith(
+          "Invalid amount"
+        );
+
+        // Staked balance is 0.
+        await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(1))).to.be.reverted;
+      }
+    }
+
+    // Validate withdrawal guards when staking is disabled.
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      true,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
+    await expect(distributor.connect(owner).stake(lpToken1.address, toWei(2))).to.not.be.reverted;
+
+    await distributor.configureStakingToken(
+      lpToken1.address,
+      false,
+      baseEmissionRate,
+      maxMultiplier,
+      secondsToMaxMultiplier
+    );
+    await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(0))).to.be.revertedWith("Invalid amount");
+    await expect(distributor.connect(owner).unstake(lpToken1.address, toWei(1))).to.not.be.reverted;
     await expect(distributor.connect(owner).exit(lpToken1.address)).to.not.be.reverted;
   });
 });
