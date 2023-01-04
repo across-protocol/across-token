@@ -127,7 +127,7 @@ describe("AcceleratingDistributor: Admin Functions", async function () {
 
     await expect(
       distributor.configureStakingToken(lpToken1.address, true, baseEmissionRate, maxMultiplier, 0)
-    ).to.be.revertedWith("secondsToMaxMultiplier <= 0");
+    ).to.be.revertedWith("secondsToMaxMultiplier is 0");
 
     await expect(
       distributor.configureStakingToken(
