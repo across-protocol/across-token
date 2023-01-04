@@ -72,6 +72,11 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         _;
     }
 
+    /**
+     * @notice AcceleratingDistributor constructor.
+     * @dev The reward token is immutable once the contact has been deployed.
+     * @param _rewardToken Contract address of token to be used for staking rewards.
+     */
     constructor(address _rewardToken) {
         rewardToken = IERC20(_rewardToken);
     }
