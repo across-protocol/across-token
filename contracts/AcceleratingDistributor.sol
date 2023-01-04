@@ -63,6 +63,14 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     }
 
     /**************************************
+     *           STATE VARIABLES          *
+     **************************************/
+
+    IERC20 public immutable rewardToken;
+
+    mapping(address => StakingToken) public stakingTokens;
+
+    /**************************************
      *               EVENTS               *
      **************************************/
 
@@ -99,14 +107,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 userRewardsPaidPerToken
     );
     event Exit(address indexed token, address indexed user, uint256 tokenCumulativeStaked);
-
-    /**************************************
-     *           STATE VARIABLES          *
-     **************************************/
-
-    IERC20 public immutable rewardToken;
-
-    mapping(address => StakingToken) public stakingTokens;
 
     /**************************************
      *              MODIFIERS             *
