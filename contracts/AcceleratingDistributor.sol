@@ -29,7 +29,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @dev Stored user rewards are updated each time a Staker Function is called with the user's address.
      * @param cumulativeBalance User's current total staking balance in the contract for this address.
      * @param averageDepositTime Averaged timestamp of user's entry into the pool, weighted by the size of each deposit.
-     * @param rewardsAccumulatedPerToken User's cumulative per-unit share of staking rewards since last update.
+     * @param rewardsAccumulatedPerToken User's cumulative per-unit share of staking rewards as at the last update.
      * @param rewardsOutstanding Staking reward tokens available to be claimed since last update.
      */
     struct UserDeposit {
@@ -46,7 +46,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param maxMultiplier Maximum achievable multiplier to be applied to baseEmissionRate.
      * @param secondsToMaxMulitplier Number of seconds after user's averageDepositTime before reaching maxMultiplier.
      * @param cumulativeStaked Total amount of deposit token staked in contract.
-     * @param rewardPerTokenStored Global cumulative per-unit share of staking rewards since last update.
+     * @param rewardPerTokenStored Global cumulative per-unit share of staking rewards as at the last update.
      * @param lastUpdateTime Timestamp of last configuration change or rewards calculation.
      */
     struct StakingToken {
