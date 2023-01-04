@@ -182,7 +182,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param amount The amount of the token to stake.
      */
     function stake(address stakedToken, uint256 amount) external nonReentrant onlyEnabled(stakedToken) {
-        require(amount > 0, "Invalid amount");
         _stake(stakedToken, amount, msg.sender);
     }
 
@@ -200,7 +199,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 amount,
         address beneficiary
     ) external nonReentrant onlyEnabled(stakedToken) {
-        require(amount > 0, "Invalid amount");
         require(beneficiary != address(0), "Invalid beneficiary");
         _stake(stakedToken, amount, beneficiary);
     }
@@ -405,6 +403,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 amount,
         address staker
     ) internal {
+        require(amount > 0, "Invalid amount");
         _updateReward(stakedToken, staker);
 
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[staker];
