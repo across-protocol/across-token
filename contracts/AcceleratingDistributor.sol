@@ -22,7 +22,9 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable rewardToken;
+    /**************************************
+     *          TYPE DECLARATIONS         *
+     **************************************/
 
     /**
      * @notice Tracks the staking balance and associated rewards of an address for a single staking token.
@@ -60,34 +62,13 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         mapping(address => UserDeposit) stakingBalances;
     }
 
+    /**************************************
+     *           STATE VARIABLES          *
+     **************************************/
+
+    IERC20 public immutable rewardToken;
+
     mapping(address => StakingToken) public stakingTokens;
-
-    modifier onlyEnabled(address stakedToken) {
-        require(stakingTokens[stakedToken].enabled, "stakedToken not enabled");
-        _;
-    }
-
-    modifier onlyInitialized(address stakedToken) {
-        require(stakingTokens[stakedToken].lastUpdateTime != 0, "stakedToken not initialized");
-        _;
-    }
-
-    /**
-     * @notice AcceleratingDistributor constructor.
-     * @dev The reward token is immutable once the contact has been deployed.
-     * @param _rewardToken Contract address of token to be used for staking rewards.
-     */
-    constructor(address _rewardToken) {
-        rewardToken = IERC20(_rewardToken);
-    }
-
-    /**
-     * @notice Returns the current block timestamp.
-     * @return uint256 Current block timestamp.
-     */
-    function getCurrentTime() public view virtual returns (uint256) {
-        return block.timestamp; // solhint-disable-line not-rely-on-time
-    }
 
     /**************************************
      *               EVENTS               *
@@ -126,6 +107,28 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 userRewardsPaidPerToken
     );
     event Exit(address indexed token, address indexed user, uint256 tokenCumulativeStaked);
+
+    /**************************************
+     *              MODIFIERS             *
+     **************************************/
+
+    modifier onlyEnabled(address stakedToken) {
+        require(stakingTokens[stakedToken].enabled, "stakedToken not enabled");
+        _;
+    }
+
+    modifier onlyInitialized(address stakedToken) {
+        require(stakingTokens[stakedToken].lastUpdateTime != 0, "stakedToken not initialized");
+        _;
+    }
+
+    /**************************************
+     *            CONSTRUCTOR             *
+     **************************************/
+
+    constructor(address _rewardToken) {
+        rewardToken = IERC20(_rewardToken);
+    }
 
     /**************************************
      *          ADMIN FUNCTIONS           *
@@ -304,6 +307,10 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**************************************
      *           VIEW FUNCTIONS           *
      **************************************/
+
+    function getCurrentTime() public view virtual returns (uint256) {
+        return block.timestamp; // solhint-disable-line not-rely-on-time
+    }
 
     /**
      * @notice Returns the total staked for a given stakedToken.
