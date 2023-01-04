@@ -150,7 +150,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         uint256 maxMultiplier,
         uint256 secondsToMaxMultiplier
     ) external onlyOwner {
-        // Validate input to ensure system stability and avoid unexpected behavior. Note we dont place a lower bound on
+        // Validate input to ensure system stability and avoid unexpected behavior. Note we don't place a lower bound on
         // the baseEmissionRate. If this value is less than 1e18 then you will slowly lose your staking rewards over
         // time. Because of the way balances are managed, the staked token cannot be the reward token. Otherwise, reward
         // payouts could eat into user balances. maxMultiplier is constrained to be at least 1e18 to enforce a minimum
