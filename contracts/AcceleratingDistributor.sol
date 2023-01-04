@@ -22,6 +22,10 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     using SafeERC20 for IERC20;
 
+    /**************************************
+     *          TYPE DECLARATIONS         *
+     **************************************/
+
     /**
      * @notice Tracks the staking balance and associated rewards of an address for a single staking token.
      * @dev Stored user rewards are updated each time a Staker Function is called with the user's address.
