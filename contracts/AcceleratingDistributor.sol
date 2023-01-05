@@ -229,6 +229,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      */
     function exit(address stakedToken) external onlyInitialized(stakedToken) {
         _updateReward(stakedToken, msg.sender);
+        require(stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance > 0, "Invalid amount");
         _unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
         _withdrawReward(stakedToken);
 
