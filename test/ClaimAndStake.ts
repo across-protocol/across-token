@@ -1,7 +1,6 @@
-import { expect, ethers, Contract, SignerWithAddress, toWei, toBN, getContractFactory } from "./utils";
+import { expect, ethers, Contract, SignerWithAddress, toWei, toBN } from "./utils";
 import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
-import { MAX_UINT_VAL, ZERO_ADDRESS } from "@uma/common";
-import { MerkleTree } from "@uma/merkle-distributor";
+import { MAX_UINT_VAL, MerkleTree } from "@uma/common";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier } from "./constants";
 
 let acrossToken: Contract, distributor: Contract, lpToken1: Contract, claimer: SignerWithAddress;
@@ -17,6 +16,8 @@ type RecipientWithProof = Recipient & {
   windowIndex: number;
   merkleProof: Buffer[];
 };
+
+const hashFn = (x: Buffer) => x.toString("hex");
 
 const createLeaf = (recipient: Recipient) => {
   expect(Object.keys(recipient).every((val) => ["account", "amount", "accountIndex"].includes(val))).to.be.true;
@@ -66,12 +67,18 @@ describe("ClaimAndStake: Atomic Claim and Stake", async function () {
       },
     ];
 
-    const merkleTree1 = new MerkleTree(reward1Recipients.map((item) => createLeaf(item)));
+    const merkleTree1 = new MerkleTree(
+      reward1Recipients.map((item) => createLeaf(item)),
+      hashFn
+    );
     await merkleDistributor
       .connect(contractCreator)
       .setWindow(window1RewardAmount, lpToken1.address, merkleTree1.getRoot(), "");
 
-    const merkleTree2 = new MerkleTree(reward2Recipients.map((item) => createLeaf(item)));
+    const merkleTree2 = new MerkleTree(
+      reward2Recipients.map((item) => createLeaf(item)),
+      hashFn
+    );
     await merkleDistributor
       .connect(contractCreator)
       .setWindow(window2RewardAmount, lpToken1.address, merkleTree2.getRoot(), "");
