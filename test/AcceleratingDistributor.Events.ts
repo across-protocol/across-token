@@ -3,24 +3,31 @@ import { toWei, advanceTime, seedAndApproveWallet, getContractFactory } from "./
 import { acceleratingDistributorFixture, enableTokenForStaking } from "./AcceleratingDistributor.Fixture";
 import { baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, stakeAmount } from "./constants";
 
-let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract, depositor1: SignerWithAddress;
+let timer: Contract, acrossToken: Contract, distributor: Contract, lpToken1: Contract, lpToken2: Contract;
+let depositor1: SignerWithAddress;
 let owner: SignerWithAddress, rando: SignerWithAddress;
 
 describe("AcceleratingDistributor: Events", async function () {
   beforeEach(async function () {
     [owner, depositor1, rando] = await ethers.getSigners();
-    ({ timer, distributor, acrossToken, lpToken1 } = await acceleratingDistributorFixture());
+    ({ timer, distributor, acrossToken, lpToken1, lpToken2 } = await acceleratingDistributorFixture());
 
     await enableTokenForStaking(distributor, lpToken1, acrossToken);
     await seedAndApproveWallet(depositor1, [lpToken1], distributor);
   });
+
+  it("addStakingToken", async function () {
+    const currentTime = await distributor.getCurrentTime();
+    await expect(distributor.addStakingToken(lpToken2.address, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier))
+      .to.emit(distributor, "TokenAddedForStaking")
+      .withArgs(lpToken2.address, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+  });
+
   it("configureStakingToken", async function () {
     const currentTime = await distributor.getCurrentTime();
-    await expect(
-      distributor.configureStakingToken(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier)
-    )
-      .to.emit(distributor, "TokenConfiguredForStaking")
-      .withArgs(lpToken1.address, true, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier, currentTime);
+    await expect(distributor.configureStakingToken(lpToken1.address, true))
+      .to.emit(distributor, "StakingTokenUpdated")
+      .withArgs(lpToken1.address, true);
   });
 
   it("RecoverToken", async function () {

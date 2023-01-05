@@ -147,13 +147,7 @@ describe("ClaimAndStake: Atomic Claim and Stake", async function () {
   });
   it("Claimed token is not eligible for staking", async function () {
     // Disable staking token
-    await distributor.configureStakingToken(
-      lpToken1.address,
-      false,
-      baseEmissionRate,
-      maxMultiplier,
-      secondsToMaxMultiplier
-    );
+    await distributor.configureStakingToken(lpToken1.address, false);
     await expect(claimAndStake.connect(claimer).claimAndStake(batchedClaims[0])).to.be.revertedWith(
       "stakedToken not enabled"
     );

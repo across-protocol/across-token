@@ -74,14 +74,13 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      *               EVENTS               *
      **************************************/
 
-    event TokenConfiguredForStaking(
+    event TokenAddedForStaking(
         address indexed token,
-        bool enabled,
         uint256 baseEmissionRate,
         uint256 maxMultiplier,
-        uint256 secondsToMaxMultiplier,
-        uint256 lastUpdateTime
+        uint256 secondsToMaxMultiplier
     );
+    event StakingTokenUpdated(address indexed token, bool enabled);
     event RecoverToken(address indexed token, uint256 amount);
     event Stake(
         address indexed token,
@@ -135,17 +134,16 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      **************************************/
 
     /**
-     * @notice Enable a token for staking. Emits a TokenConfiguredForStaking event on success.
+     * @notice Add a new token for staking. The initial token configuration may be modified multiple times in advance
+     * of enabling the staking token for the first time. Emits a TokenConfiguredForStaking event on success.
      * @dev The owner should ensure that the token enabled is a standard ERC20 token to ensure correct functionality.
      * @param stakedToken The address of the token that can be staked.
-     * @param enabled Whether the token is enabled for staking.
      * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rata between all users.
      * @param maxMultiplier The maximum multiplier for staking which increases your rewards the longer you stake.
      * @param secondsToMaxMultiplier The number of seconds needed to stake to reach the maximum multiplier.
      */
-    function configureStakingToken(
+    function addStakingToken(
         address stakedToken,
-        bool enabled,
         uint256 baseEmissionRate,
         uint256 maxMultiplier,
         uint256 secondsToMaxMultiplier
@@ -156,30 +154,36 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         // payouts could eat into user balances. maxMultiplier is constrained to be at least 1e18 to enforce a minimum
         // 1x multiplier and avoid potential underflows.
         require(stakedToken != address(rewardToken), "Staked token is reward token");
+        require(baseEmissionRate <= 1e24, "baseEmissionRate too large"); // 1 million tokens per second.
         require(maxMultiplier <= 1e24, "maxMultiplier too large"); // 1_000_000x multiplier.
         require(maxMultiplier >= 1e18, "maxMultiplier less than 1e18");
         require(secondsToMaxMultiplier > 0, "secondsToMaxMultiplier is 0");
-        require(baseEmissionRate <= 1e24, "baseEmissionRate too large"); // 1 million tokens per second.
 
         StakingToken storage stakingToken = stakingTokens[stakedToken];
+        require(stakingToken.lastUpdateTime == 0, "Staking token already added");
 
-        // If this token is already initialized, make sure we update the rewards before modifying any params.
-        if (stakingToken.lastUpdateTime != 0) _updateReward(stakedToken, address(0));
-
-        stakingToken.enabled = enabled;
         stakingToken.baseEmissionRate = baseEmissionRate;
         stakingToken.maxMultiplier = maxMultiplier;
         stakingToken.secondsToMaxMultiplier = secondsToMaxMultiplier;
-        stakingToken.lastUpdateTime = getCurrentTime();
 
-        emit TokenConfiguredForStaking(
-            stakedToken,
-            enabled,
-            baseEmissionRate,
-            maxMultiplier,
-            secondsToMaxMultiplier,
-            stakingToken.lastUpdateTime
-        );
+        emit TokenAddedForStaking(stakedToken, baseEmissionRate, maxMultiplier, secondsToMaxMultiplier);
+    }
+
+    /**
+     * @notice Change the configuration of a staking token. Emits a StakingTokenUpdated event on success.
+     * @param stakedToken The address of the token that can be staked.
+     * @param enabled Whether the token is enabled for staking.
+     */
+    function configureStakingToken(address stakedToken, bool enabled) external onlyOwner {
+        require(stakedToken != address(0), "Invalid staking token");
+
+        StakingToken storage stakingToken = stakingTokens[stakedToken];
+        require(stakingToken.maxMultiplier >= 1e18, "Staking token not added");
+
+        _updateReward(stakedToken, address(0));
+        stakingToken.enabled = enabled;
+
+        emit StakingTokenUpdated(stakedToken, enabled);
     }
 
     /**
