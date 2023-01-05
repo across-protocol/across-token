@@ -480,7 +480,6 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
             rewardsToSend,
             stakingTokens[stakedToken].lastUpdateTime,
             stakingTokens[stakedToken].rewardPerTokenStored,
-            userDeposit.rewardsOutstanding,
             userDeposit.rewardsAccumulatedPerToken
         );
     }
