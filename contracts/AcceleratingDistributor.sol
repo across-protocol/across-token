@@ -135,8 +135,22 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      **************************************/
 
     /**
-     * @notice Enable a token for staking. Emits a TokenConfiguredForStaking event on success.
+     * @notice Add a new token for staking, or update the configuration of an existing token. Emits a
+     * TokenConfiguredForStaking event on success.
+     * @notice The contract owner should exercise additional caution when modifying the configuration of an existing
+     * staking token. If maxMultiplier or secondsToMaxMultipler are changed for an existing token, each staker of that
+     * token is retroactively impacted for the period since their rewards were last recomputed in _updateReward():
+     * - Increasing maxMultiplier or reducing secondsToMaxMultiplier emits additional rewards to the staker.
+     * - Decreasing maxMultiplier or increasing secondsToMaxMultiplier emits fewer rewards to the staker.
+     * In cases where it is desirable to modify multiplier-related configuration, consider migrating to a new deployment
+     * with the desired configuration.
+     * @notice When updating the baseEmissionRate, the current baseEmissionRate is retained for historical reward
+     * calculations. Older baseEmissionRate configurations are discarded.
      * @dev The owner should ensure that the token enabled is a standard ERC20 token to ensure correct functionality.
+     * @dev Future updates may consider:
+     * - Making specific emissions configuration items immutable after they have been initially configured.
+     * - Implementing reward checkpointing by modifying the configuration update and rewards calculations functions.
+     *   This would enable complete re-configuration of any staking token.
      * @param stakedToken The address of the token that can be staked.
      * @param enabled Whether the token is enabled for staking.
      * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rata between all users.
