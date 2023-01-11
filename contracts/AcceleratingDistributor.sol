@@ -147,10 +147,10 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @notice When updating the baseEmissionRate, the current baseEmissionRate is retained for historical reward
      * calculations. Older baseEmissionRate configurations are discarded.
      * @dev The owner should ensure that the token enabled is a standard ERC20 token to ensure correct functionality.
-     * @dev To permit complete staking token configuration without the associated retroactive reward impact, future
-     * updates may consider:
+     * @dev Future updates may consider:
      * - Making specific emissions configuration items immutable after they have been initially configured.
      * - Implementing reward checkpointing by modifying the configuration update and rewards calculations functions.
+     *   This would enable complete re-configuration of any staking token.
      * @param stakedToken The address of the token that can be staked.
      * @param enabled Whether the token is enabled for staking.
      * @param baseEmissionRate The base emission rate for staking the token. This is split pro-rata between all users.
