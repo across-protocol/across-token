@@ -199,7 +199,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     /**
      * @notice Enables the owner to recover tokens dropped onto the contract. This could be used to remove unclaimed
      * staking rewards or recover excess LP tokens that were inadvertently dropped onto the contract. Importantly, the
-     * contract will only let the owner recover excess tokens above what the contract thinks it should have, i.e the
+     * contract will only let the owner recover excess tokens above what the contract thinks it should have, i.e. the
      * owner can't use this method to steal staked tokens, only recover excess ones mistakenly sent to the contract.
      * Emits a RecoverToken event on success.
      * @param token The address of the token to skim.
@@ -407,7 +407,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
     }
 
     /**
-     * @notice Returns the time that has elapsed between the current time and the last user's average deposit time.
+     * @notice Returns the time that has elapsed between the current time and the user's average deposit time.
      * @param stakedToken The address of the staked token to query.
      * @param account The address of the user to query.
      * @return uint256 Time, in seconds, between the user's average deposit time and the current time.
