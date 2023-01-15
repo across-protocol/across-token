@@ -126,6 +126,11 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      *            CONSTRUCTOR             *
      **************************************/
 
+    /**
+     * @notice AcceleratingDistributor constructor.
+     * @dev The reward token is immutable once the contact has been deployed.
+     * @param _rewardToken Contract address of token to be used for staking rewards.
+     */
     constructor(address _rewardToken) {
         rewardToken = IERC20(_rewardToken);
     }
@@ -322,6 +327,10 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      *           VIEW FUNCTIONS           *
      **************************************/
 
+    /**
+     * @notice Returns the current block timestamp.
+     * @return uint256 Current block timestamp.
+     */
     function getCurrentTime() public view virtual returns (uint256) {
         return block.timestamp; // solhint-disable-line not-rely-on-time
     }
