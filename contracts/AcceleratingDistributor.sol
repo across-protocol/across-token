@@ -266,8 +266,8 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param stakedToken The address of the token to get rewards for.
      */
     function exit(address stakedToken) external onlyInitialized(stakedToken) {
-        _updateReward(stakedToken, msg.sender);
         require(stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance > 0, "Invalid amount");
+        _updateReward(stakedToken, msg.sender);
         _unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
         _withdrawReward(stakedToken);
 
@@ -446,6 +446,7 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
         );
     }
 
+    // Decreases user's staked balance by `amount` and returns to user.
     function _unstake(address stakedToken, uint256 amount) internal {
         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
 
