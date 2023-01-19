@@ -261,25 +261,10 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param stakedToken The address of the token to withdraw.
      * @param amount The amount of the token to withdraw.
      */
-    function unstake(address stakedToken, uint256 amount) public nonReentrant onlyInitialized(stakedToken) {
+    function unstake(address stakedToken, uint256 amount) external nonReentrant onlyInitialized(stakedToken) {
         require(amount > 0, "Invalid amount");
-
         _updateReward(stakedToken, msg.sender);
-        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
-
-        // Note: these will revert if underflow occurs, so you can't unstake more than your cumulativeBalance.
-        userDeposit.cumulativeBalance -= amount;
-        stakingTokens[stakedToken].cumulativeStaked -= amount;
-
-        IERC20(stakedToken).safeTransfer(msg.sender, amount);
-
-        emit Unstake(
-            stakedToken,
-            msg.sender,
-            amount,
-            userDeposit.cumulativeBalance,
-            stakingTokens[stakedToken].cumulativeStaked
-        );
+        _unstake(stakedToken, amount);
     }
 
     /**
@@ -288,25 +273,9 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @dev Calling this method will reset the caller's reward multiplier.
      * @param stakedToken The address of the token to get rewards for.
      */
-    function withdrawReward(address stakedToken) public nonReentrant onlyInitialized(stakedToken) {
+    function withdrawReward(address stakedToken) external nonReentrant onlyInitialized(stakedToken) {
         _updateReward(stakedToken, msg.sender);
-        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
-
-        uint256 rewardsToSend = userDeposit.rewardsOutstanding;
-        if (rewardsToSend > 0) {
-            userDeposit.rewardsOutstanding = 0;
-            userDeposit.averageDepositTime = getCurrentTime();
-            rewardToken.safeTransfer(msg.sender, rewardsToSend);
-        }
-
-        emit RewardsWithdrawn(
-            stakedToken,
-            msg.sender,
-            rewardsToSend,
-            stakingTokens[stakedToken].lastUpdateTime,
-            stakingTokens[stakedToken].rewardPerTokenStored,
-            userDeposit.rewardsAccumulatedPerToken
-        );
+        _withdrawReward(stakedToken);
     }
 
     /**
@@ -316,9 +285,10 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
      * @param stakedToken The address of the token to get rewards for.
      */
     function exit(address stakedToken) external onlyInitialized(stakedToken) {
+        require(stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance > 0, "Invalid amount");
         _updateReward(stakedToken, msg.sender);
-        unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
-        withdrawReward(stakedToken);
+        _unstake(stakedToken, stakingTokens[stakedToken].stakingBalances[msg.sender].cumulativeBalance);
+        _withdrawReward(stakedToken);
 
         emit Exit(stakedToken, msg.sender, stakingTokens[stakedToken].cumulativeStaked);
     }
@@ -496,6 +466,45 @@ contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
             averageDepositTime,
             userDeposit.cumulativeBalance,
             stakingTokens[stakedToken].cumulativeStaked
+        );
+    }
+
+    // Decreases user's staked balance by `amount` and returns to user.
+    function _unstake(address stakedToken, uint256 amount) internal {
+        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
+
+        // Note: these will revert if underflow so you cant unstake more than your cumulativeBalance.
+        userDeposit.cumulativeBalance -= amount;
+        stakingTokens[stakedToken].cumulativeStaked -= amount;
+
+        IERC20(stakedToken).safeTransfer(msg.sender, amount);
+
+        emit Unstake(
+            stakedToken,
+            msg.sender,
+            amount,
+            userDeposit.cumulativeBalance,
+            stakingTokens[stakedToken].cumulativeStaked
+        );
+    }
+
+    function _withdrawReward(address stakedToken) internal {
+        UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[msg.sender];
+
+        uint256 rewardsToSend = userDeposit.rewardsOutstanding;
+        if (rewardsToSend > 0) {
+            userDeposit.rewardsOutstanding = 0;
+            userDeposit.averageDepositTime = getCurrentTime();
+            rewardToken.safeTransfer(msg.sender, rewardsToSend);
+        }
+
+        emit RewardsWithdrawn(
+            stakedToken,
+            msg.sender,
+            rewardsToSend,
+            stakingTokens[stakedToken].lastUpdateTime,
+            stakingTokens[stakedToken].rewardPerTokenStored,
+            userDeposit.rewardsAccumulatedPerToken
         );
     }
 }
