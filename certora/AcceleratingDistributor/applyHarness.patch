@@ -1,0 +1,38 @@
+--- ../../contracts/AcceleratingDistributor.sol	2022-12-21 11:05:45.930780900 +0200
++++ 	2023-01-03 10:32:05.107472900 +0200
+@@ -15,8 +15,8 @@
+  * only compatible with standard ERC20 tokens, and not tokens that charge fees on transfers, dynamically change
+  * balance, or have double entry-points. It's up to the contract owner to ensure they only add supported tokens.
+  */
+-
+-contract AcceleratingDistributor is ReentrancyGuard, Ownable, Multicall {
++// Certora: remove MultiCaller inheritance due to technical issues.
++contract AcceleratingDistributor is ReentrancyGuard, Ownable {
+     using SafeERC20 for IERC20;
+ 
+     IERC20 public immutable rewardToken;
+@@ -296,12 +296,12 @@
+      * was originally audited and deployed with this function being public. Its useful for testing if this function is
+      * public but it can return nonsensical values if the stakedToken precision is fewer than 18 decimals.
+      * @dev the value returned is represented by a uint256 with fixed precision of (18 + 18 - X) decimals, where
+-     * X = decimals of the stakedToken. This is becauseof how the return value is divided by `cumulativeStaked`
+-     * which has the same precisionas stakedToken.
++     * X = decimals of the stakedToken. This is because of how the return value is divided by `cumulativeStaked`
++     * which has the same precision as stakedToken.
+      * @param stakedToken The address of the staked token to query.
+      * @return uint256 Total base reward per token that will be applied, pro-rata, to stakers.
+      */
+-    function baseRewardPerToken(address stakedToken) public view returns (uint256) {
++    function baseRewardPerToken(address stakedToken) public virtual view returns (uint256) {
+         StakingToken storage stakingToken = stakingTokens[stakedToken];
+         if (stakingToken.cumulativeStaked == 0) return stakingToken.rewardPerTokenStored;
+ 
+@@ -320,7 +320,7 @@
+      * @param account The address of the user to query.
+      * @return uint256 User multiplier, applied to the baseRewardPerToken, when claiming rewards.
+      */
+-    function getUserRewardMultiplier(address stakedToken, address account) public view returns (uint256) {
++    function getUserRewardMultiplier(address stakedToken, address account) public virtual view returns (uint256) {
+         UserDeposit storage userDeposit = stakingTokens[stakedToken].stakingBalances[account];
+         if (userDeposit.averageDepositTime == 0 || userDeposit.cumulativeBalance == 0) return 1e18;
+         uint256 fractionOfMaxMultiplier = ((getTimeSinceAverageDeposit(stakedToken, account)) * 1e18) /
