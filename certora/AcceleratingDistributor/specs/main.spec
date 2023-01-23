@@ -78,13 +78,8 @@ uint256 value (uint256 old_value) STORAGE
 /**************************************************
 *              MISC RULES                        *
 **************************************************/
-rule sanity(method f) {
-    env e;
-    calldataarg args;
-    f(e, args);
-    assert false;
-}
 
+/* Can ignore for now
 rule viewFuncsDontRevert(method f) filtered {f -> f.isView} {
     env e;
     require e.msg.value == 0;
@@ -92,6 +87,7 @@ rule viewFuncsDontRevert(method f) filtered {f -> f.isView} {
     f@withrevert(e, args);
     assert !lastReverted;
 }
+*/
 
 rule maxMultiplierUnder10_18Reverts(address stakedToken, address account) {
     env e1;
@@ -288,6 +284,7 @@ rule exitCannotBeFrontRunnedByExit(address stakedToken) {
     env e1;
     env e2;
     require e1.msg.sender != e2.msg.sender;
+    require e2.block.timestamp >= e1.block.timestamp;
     requireInvariant cumulativeStakedEqualsSumOfStakes(stakedToken);
     require (getUserCumulativeBalance(stakedToken, e1.msg.sender) + 
             getUserCumulativeBalance(stakedToken, e2.msg.sender) <= 

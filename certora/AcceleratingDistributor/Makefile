@@ -12,10 +12,9 @@ help:
 	@echo "  make $(MUNGED_DIR): create $(MUNGED_DIR) directory by applying the patch file to $(CONTRACTS_DIR)"
 	@echo "  make record: record a new patch file capturing the differences between $(CONTRACTS_DIR) and $(MUNGED_DIR)"
 
-munged:  $(wildcard $(CONTRACTS_DIR)/*.sol) $(PATCH)
-	rm -rf $@
-	cp -r $(CONTRACTS_DIR) $@
-	patch -p0 -d $@ < $(PATCH)
+munge:
+	cp $(AcceleratingDistributor_Origin) $(MUNGED_DIR)
+	patch -d $(MUNGED_DIR) < $(PATCH)
 
 record:
 	diff -ruN $(AcceleratingDistributor_Origin) $(AcceleratingDistributor_munged) | sed 's+\$(AcceleratingDistributor_Origin)/++g' | sed 's+$(AcceleratingDistributor_munged)++g' > $(PATCH)
