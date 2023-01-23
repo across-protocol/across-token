@@ -14,6 +14,6 @@ artifacts
 .certora*
 resource_errors.json
 last_conf*
-
+.vscode
 certora*.txt
 .zip-output-url.txt
